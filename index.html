@@ -427,6 +427,46 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
   .card { padding: 20px 16px; }
 }
 </style>
+<style id="anim-polish">
+:root { --ease-spring: cubic-bezier(0.22, 1, 0.36, 1); }
+/* 進場：卡片依序交錯 */
+#coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
+section.card:nth-of-type(3) { animation-delay: 0.65s; }
+section.card:nth-of-type(4) { animation-delay: 0.75s; }
+/* 銅錢：更立體的翻轉與彈跳 */
+@keyframes coinFlip {
+  0% { transform: rotateX(0) translateY(0) scale(1); }
+  30% { transform: rotateX(180deg) translateY(-18px) scale(1.08); }
+  60% { transform: rotateX(360deg) translateY(-4px) scale(0.98); }
+  80% { transform: rotateX(360deg) translateY(-1px) scale(1.02); }
+  100% { transform: rotateX(360deg) translateY(0) scale(1); }
+}
+.coin.toss { animation: coinFlip 0.68s var(--ease-spring); }
+.coin .face { transition: filter 0.22s ease; }
+.coin.toss .face { filter: brightness(1.06); }
+/* 卡片：懸停微浮 */
+.card { transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease; }
+@media (hover: hover) {
+  .card:hover { transform: translateY(-2px); box-shadow: 0 2px 0 rgba(43,38,32,0.06), 0 22px 48px -26px rgba(43,38,32,0.42); }
+}
+/* 卦爻：逐爻展開 */
+.hex-row { opacity: 0; transform: translateY(8px); animation: rowIn 0.45s var(--ease-spring) both; }
+@keyframes rowIn { to { opacity: 1; transform: none; } }
+/* 解讀：區塊依序淡入 */
+.read-block { opacity: 0; animation: fadeUp 0.5s var(--ease-spring) both; }
+.read-block:nth-child(1) { animation-delay: 0.05s; }
+.read-block:nth-child(2) { animation-delay: 0.14s; }
+.read-block:nth-child(3) { animation-delay: 0.23s; }
+/* 爻線與變卦線：更柔的生長 */
+.bar.grow { animation: barGrow 0.5s var(--ease-spring) both; }
+/* 書籤與提示：彈性進場 */
+.bmk-pop { animation: bmkIn 0.62s var(--ease-spring) both; }
+.note-tip { animation: noteIn 0.22s var(--ease-spring) both; }
+/* 頁籤與按鈕：彈性回饋 */
+.tab, .coin-btn, .mini-btn { transition: transform 0.18s var(--ease-spring), background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease; }
+.tab:active, .coin-btn:active { transform: scale(0.98); }
+.mini-btn:active { transform: scale(0.97); }
+</style>
 </head>
 <body>
 <div class="wrap">
