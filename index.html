@@ -400,6 +400,33 @@ h1.title {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
 </style>
+<style id="layout-polish">
+/* 卡片細節拋光 */
+h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
+.tab { letter-spacing: 0.16em; text-indent: 0.16em; }
+.seal-title { letter-spacing: 0.12em; }
+.seal-tag {
+  border: 1.5px solid var(--cinnabar);
+  box-shadow: inset 0 0 0 2px var(--paper-2), inset 0 0 0 4px var(--cinnabar);
+}
+.coin-btn { letter-spacing: 0.22em; text-indent: 0.22em; }
+.coins { gap: 24px; }
+.coin-legend {
+  display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 14px;
+  line-height: 1.9; color: var(--ink-2);
+}
+.help, .ys-hint, .empty-tip, .num-grid label, .seal-title .sub, .hex-tag, .hex-shen { color: var(--ink-2); }
+.mini-btn { background: var(--paper-3); border-color: var(--line); }
+.mini-btn:hover { background: var(--cinnabar-soft); }
+@media (max-width: 620px) {
+  h1.title { font-size: 28px; letter-spacing: 0.14em; text-indent: 0.14em; }
+  .coins { gap: 16px; }
+  .coin { width: 50px; height: 50px; }
+  .coin .face { font-size: 17px; }
+  .coin-legend { font-size: 11px; gap: 4px 10px; }
+  .card { padding: 20px 16px; }
+}
+</style>
 </head>
 <body>
 <div class="wrap">
