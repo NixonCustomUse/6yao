@@ -426,6 +426,7 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
   .coin-legend { font-size: 11px; gap: 4px 10px; }
   .card { padding: 20px 16px; }
 }
+#baihuaBox .bai { color: var(--ink); }
 </style>
 <style id="anim-polish">
 :root { --ease-spring: cubic-bezier(0.22, 1, 0.36, 1); }
@@ -476,7 +477,7 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
 .hex-row { opacity: 0; transform: translateY(8px); animation: rowIn 0.45s var(--ease-spring) both; }
 @keyframes rowIn { to { opacity: 1; transform: none; } }
 /* 解讀：區塊依序淡入 */
-.read-block { opacity: 0; animation: fadeUp 0.5s var(--ease-spring) both; }
+.read-block { animation: fadeUp 0.5s var(--ease-spring) both; }
 .read-block:nth-child(1) { animation-delay: 0.05s; }
 .read-block:nth-child(2) { animation-delay: 0.14s; }
 .read-block:nth-child(3) { animation-delay: 0.23s; }
