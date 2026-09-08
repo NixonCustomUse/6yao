@@ -433,14 +433,42 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
 #coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
 section.card:nth-of-type(3) { animation-delay: 0.65s; }
 section.card:nth-of-type(4) { animation-delay: 0.75s; }
-/* 銅錢：自然的兩周翻轉 */
-@keyframes coinFlip {
-  0% { transform: rotateX(0) translateY(0); }
-  35% { transform: rotateX(360deg) translateY(-20px); }
-  70% { transform: rotateX(720deg) translateY(-4px); }
-  100% { transform: rotateX(720deg) translateY(0); }
+/* 銅錢：重新設計 — 跳躍與旋轉分離 + 陰影 */
+.coins { gap: 24px; perspective: 800px; }
+.coin { position: relative; }
+.coin::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: 38px;
+  height: 9px;
+  background: radial-gradient(ellipse at center, rgba(45, 30, 15, 0.28), transparent 72%);
+  border-radius: 50%;
+  transform: translateX(-50%) scale(1);
+  opacity: 0.95;
+  pointer-events: none;
 }
-.coin.toss { animation: coinFlip 0.58s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.coin.toss { animation: coinJump 0.56s cubic-bezier(0.32, 0.72, 0, 1); }
+.coin.toss::before { animation: shadowPulse 0.56s ease-out; }
+.coin .face { backface-visibility: hidden; will-change: transform; }
+.coin.toss .face { animation: coinSpin 0.56s linear; }
+.coin:nth-child(2).toss .face { animation-duration: 0.60s; }
+.coin:nth-child(3).toss .face { animation-duration: 0.52s; }
+@keyframes coinJump {
+  0% { transform: translateY(0); }
+  32% { transform: translateY(-22px); }
+  100% { transform: translateY(0); }
+}
+@keyframes coinSpin {
+  0% { transform: rotateX(0) rotateY(0) rotateZ(0); }
+  100% { transform: rotateX(720deg) rotateY(540deg) rotateZ(8deg); }
+}
+@keyframes shadowPulse {
+  0% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+  32% { transform: translateX(-50%) scale(0.62); opacity: 0.32; }
+  100% { transform: translateX(-50%) scale(1); opacity: 0.9; }
+}
 /* 卡片：懸停微浮 */
 .card { transition: transform 0.22s var(--ease-spring), box-shadow 0.22s ease; }
 @media (hover: hover) {
