@@ -15,6 +15,8 @@ final class AppModel: ObservableObject {
     @Published var dayInfo: DayInfo
     @Published var showBookmark = false
     @Published var numError = ""
+    @Published var history: [HistoryRecord] = HistoryStore.load()
+    @Published var showHistory = false
 
     let data: YiData
 
@@ -107,5 +109,65 @@ final class AppModel: ObservableObject {
             HapticManager.shared.impact(.medium, intensity: 0.6)
             showBookmark = true
         }
+    }
+
+    // MARK: - History（Task 5 最小可用，Task 6 會補全 push 流程）
+
+    func removeHistory(id: String) {
+        HistoryStore.remove(id: id)
+        history = HistoryStore.load()
+    }
+
+    func clearHistory() {
+        HistoryStore.clear()
+        history = []
+    }
+
+    func gradeForRecord(_ rec: HistoryRecord) -> Grade? {
+        guard rec.hgKey.count == 2,
+              let upper = Int(String(rec.hgKey.prefix(1))),
+              let lower = Int(String(rec.hgKey.suffix(1))) else { return nil }
+        let hg = buildHexagram(upper: upper, lower: lower, data: data)
+        return computeGrade(hg: hg, moving: rec.moving, yongshen: rec.yongshen, dayZhi: rec.dayZhi, dayIdx: rec.dayIdx)
+    }
+
+    func restore(record: HistoryRecord) {
+        yongshen = record.yongshen
+        // 還原占日
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        if let d = df.date(from: record.dateISO) {
+            castDate = d
+            updateDay()
+            // 以紀錄的 dayIdx/dayGan/dayZhi 覆蓋，xunStart/kongText 依 dayIdx 重算以保一致
+            let head = (record.dayIdx / 10) * 10
+            let xunStart = String(STEMS[head % 10]) + String(BRANCHES[head % 12])
+            let kongText = xunkongBranches(dayIdx: record.dayIdx).map { String(BRANCHES[$0]) }.joined()
+            dayInfo = DayInfo(
+                dayIdx: record.dayIdx, dayGan: record.dayGan, dayZhi: record.dayZhi,
+                yearGan: dayInfo.yearGan, yearZhi: dayInfo.yearZhi,
+                monthZhi: dayInfo.monthZhi,
+                xunStart: xunStart, kongText: kongText
+            )
+        } else {
+            // fallback：直接覆蓋日柱
+            let head = (record.dayIdx / 10) * 10
+            let xunStart = String(STEMS[head % 10]) + String(BRANCHES[head % 12])
+            let kongText = xunkongBranches(dayIdx: record.dayIdx).map { String(BRANCHES[$0]) }.joined()
+            dayInfo = DayInfo(
+                dayIdx: record.dayIdx, dayGan: record.dayGan, dayZhi: record.dayZhi,
+                yearGan: dayInfo.yearGan, yearZhi: dayInfo.yearZhi,
+                monthZhi: dayInfo.monthZhi,
+                xunStart: xunStart, kongText: kongText
+            )
+        }
+        lines = record.coinTosses ?? []
+        movingSymbols = record.movingSymbols
+        guard record.hgKey.count == 2,
+              let upper = Int(String(record.hgKey.prefix(1))),
+              let lower = Int(String(record.hgKey.suffix(1))) else { return }
+        result = cast(upper: upper, lower: lower, moving: record.moving, data: data)
     }
 }
