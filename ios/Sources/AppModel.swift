@@ -48,7 +48,8 @@ final class AppModel: ObservableObject {
     }
 
     func startCasting() async {
-        guard !casting, lines.count < 6 else { return }
+        guard !casting else { return }
+        if result != nil { pushHistory() }
         casting = true
         lines = []
         result = nil
@@ -83,15 +84,18 @@ final class AppModel: ObservableObject {
             numError = "請輸入三個正整數"
             return
         }
+        if result != nil { pushHistory() }
         numError = ""
         let upper = a % 8 == 0 ? 8 : a % 8
         let lower = b % 8 == 0 ? 8 : b % 8
         let moving = c % 6 == 0 ? 6 : c % 6
+        lines = []
         result = cast(upper: upper, lower: lower, moving: [moving - 1], data: data)
         movingSymbols = [moving - 1: "●"]
         HapticManager.shared.impact(.light, intensity: 0.5)
         HapticManager.shared.impact(.medium, intensity: 0.6)
         showBookmark = true
+        history = HistoryStore.load()
     }
 
     private func finalize(triggerBookmark: Bool) {
@@ -111,7 +115,41 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: - History（Task 5 最小可用，Task 6 會補全 push 流程）
+    // MARK: - History
+
+    func pushHistory() {
+        guard let r = result else { return }
+        let df = DateFormatter()
+        df.dateFormat = "yyyy-MM-dd"
+        df.timeZone = TimeZone(secondsFromGMT: 0)
+        df.locale = Locale(identifier: "en_US_POSIX")
+        let dateISO = df.string(from: castDate)
+        let codableLines: [HistoryRecord.CoinTossCodable]? = lines.isEmpty ? nil : lines.map {
+            HistoryRecord.CoinTossCodable(coins: $0.coins, backs: $0.backs, symbol: $0.symbol, moving: $0.moving)
+        }
+        let rec = HistoryRecord(
+            id: UUID().uuidString,
+            ts: Date().timeIntervalSince1970 * 1000,
+            dateISO: dateISO,
+            ganzhiText: ganzhiText,
+            yongshen: yongshen,
+            hgKey: r.hg.key,
+            changedKey: r.changed?.key,
+            hgName: r.hg.name,
+            changedName: r.changed?.name,
+            moving: r.moving,
+            movingSymbols: movingSymbols,
+            bits: r.hg.bits,
+            dayIdx: dayInfo.dayIdx,
+            dayGan: dayInfo.dayGan,
+            dayZhi: dayInfo.dayZhi,
+            lines: codableLines,
+            source: lines.isEmpty ? "numbers" : "coins",
+            inputs: nil
+        )
+        HistoryStore.push(rec)
+        history = HistoryStore.load()
+    }
 
     func removeHistory(id: String) {
         HistoryStore.remove(id: id)

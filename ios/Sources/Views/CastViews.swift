@@ -37,7 +37,7 @@ struct CoinsCastView: View {
                     .padding(.vertical, 12)
                     .background(Color.cinnabar, in: RoundedRectangle(cornerRadius: 4))
             }
-            .disabled(model.casting || model.lines.count >= 6)
+            .disabled(model.casting)
 
             if !model.lines.isEmpty {
                 VStack(spacing: 0) {
