@@ -81,5 +81,58 @@ eq("白話含動爻白話", vtext.contains("臀部無皮，行動困難，雖危
 let ctext = rs.classical.flatMap { $0.lines }.joined()
 eq("文言含卦辭標記", ctext.contains("卦辭："), true)
 
+// 18. HistoryStore limit 50
+HistoryStore.clear()
+for i in 0..<55 {
+    let r = HistoryRecord(id: "\(i)", ts: Double(i), dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [], movingSymbols: [:], bits: [1,1,1,1,1,1], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: nil)
+    HistoryStore.push(r)
+}
+eq("History limit 50", HistoryStore.load().count, 50)
+eq("History order newest first", HistoryStore.load().first?.id, "54")
+eq("History oldest truncated", HistoryStore.load().last?.id, "5")
+
+// 19. History roundTrip Codable
+HistoryStore.clear()
+let tossCodable = HistoryRecord.CoinTossCodable(coins: [true, false, false], backs: 1, symbol: "- -", moving: false)
+let sample = HistoryRecord(id: "x", ts: 1, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "妻財", hgKey: "11", changedKey: "58", hgName: "乾為天", changedName: "風地觀", moving: [0], movingSymbols: [0: "○"], bits: [1,0,0,0,0,0], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: [tossCodable], source: "coins", inputs: nil)
+HistoryStore.push(sample)
+let loaded = HistoryStore.load().first!
+eq("History roundTrip hgKey", loaded.hgKey, "11")
+eq("History roundTrip movingSymbols", loaded.movingSymbols[0], "○")
+eq("History roundTrip bits", loaded.bits, [1,0,0,0,0,0])
+eq("History roundTrip coinTosses symbol", loaded.coinTosses?.first?.symbol, "- -")
+eq("History roundTrip coinTosses coins", loaded.coinTosses?.first?.coins, [true,false,false])
+eq("History roundTrip Equatable", loaded, sample)
+eq("History inputs nil preserved", loaded.inputs, nil)
+
+// numbers input roundTrip
+HistoryStore.clear()
+let numSample = HistoryRecord(id: "n1", ts: 2, dateISO: "2026-09-08", ganzhiText: "乙丑", yongshen: "官鬼", hgKey: "88", changedKey: nil, hgName: "坤為地", changedName: nil, moving: [5], movingSymbols: [5: "×"], bits: [0,0,0,0,0,0], dayIdx: 1, dayGan: "乙", dayZhi: "丑", lines: nil, source: "numbers", inputs: HistoryRecord.NumbersInput(a: 7, b: 8, c: 9))
+HistoryStore.push(numSample)
+let loaded2 = HistoryStore.load().first!
+eq("History numbers inputs roundTrip", loaded2.inputs, HistoryRecord.NumbersInput(a: 7, b: 8, c: 9))
+eq("History numbers moving", loaded2.moving, [5])
+
+// 20. History remove
+HistoryStore.clear()
+HistoryStore.push(HistoryRecord(id: "a", ts: 1, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [], movingSymbols: [:], bits: [1,1,1,1,1,1], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: HistoryRecord.NumbersInput(a: 1, b: 2, c: 3)))
+HistoryStore.push(HistoryRecord(id: "b", ts: 2, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "88", changedKey: nil, hgName: "坤為地", changedName: nil, moving: [], movingSymbols: [:], bits: [0,0,0,0,0,0], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: nil))
+HistoryStore.remove(id: "b")
+eq("History remove count", HistoryStore.load().count, 1)
+eq("History remove remaining", HistoryStore.load().first?.id, "a")
+HistoryStore.remove(id: "nonexistent")
+eq("History remove nonexistent still 1", HistoryStore.load().count, 1)
+
+// 21. History clear + decode failure
+HistoryStore.clear()
+HistoryStore.push(HistoryRecord(id: "c", ts: 3, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [], movingSymbols: [:], bits: [1,1,1,1,1,1], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: nil))
+HistoryStore.clear()
+eq("History clear count 0", HistoryStore.load().count, 0)
+eq("History load empty after clear", HistoryStore.load(), [] as [HistoryRecord])
+UserDefaults.standard.set(Data("corrupted".utf8), forKey: HistoryStore.key)
+eq("History decode failure returns []", HistoryStore.load(), [] as [HistoryRecord])
+HistoryStore.clear()
+eq("History after corrupt clear", HistoryStore.load().count, 0)
+
 print("\n\(pass) passed, \(fail) failed")
 exit(fail == 0 ? 0 : 1)
