@@ -491,6 +491,16 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
 .tab:active, .coin-btn:active { transform: scale(0.98); }
 .mini-btn:active { transform: scale(0.97); }
 </style>
+<style id="history-style">
+#historyCard .history-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:linear-gradient(180deg,var(--paper-2),var(--paper));cursor:pointer;transition:transform 0.15s var(--ease-spring),border-color 0.15s}
+#historyCard .history-item:hover{transform:translateY(-1px);border-color:var(--line-2)}
+#historyOverlay .history-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;border:1px solid var(--line);border-radius:6px;background:var(--paper-2);cursor:pointer}
+.history-meta{font-size:13px;color:var(--ink-2);letter-spacing:0.06em}
+.history-meta b{color:var(--ink);font-weight:700}
+.history-grade{font-family:var(--font-display);font-size:12px;letter-spacing:0.18em;padding:2px 8px;border:1.5px solid var(--cinnabar);color:var(--cinnabar);border-radius:2px}
+.history-del{width:26px;height:26px;border-radius:50%;border:1px solid var(--line-2);background:transparent;color:var(--ink-3);cursor:pointer}
+.history-del:hover{border-color:var(--cinnabar);color:var(--cinnabar)}
+</style>
 </head>
 <body>
 <div class="wrap">
@@ -502,6 +512,7 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
       <span class="date-label" data-note="占日：占卜當日。日辰是斷卦旺衰的重要依據">占日</span>
       <input type="date" id="dateInput" data-note="更換日期會重新推算干支、旬空與吉凶分級">
       <span class="ganzhi" id="ganzhiText">-- 年 -- 月 -- 日</span>
+      <button id="historyBtn" class="seal-mini fill" style="margin-left:10px;width:28px;height:28px;font-size:13px" data-note="歷史紀錄" title="歷史">史</button>
     </div>
   </header>
 
@@ -564,6 +575,23 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
     <h2 class="seal-title"><span class="seal-tag">白話</span>白話解讀</h2>
     <div id="baihuaBox" class="empty-tip">尚未起卦。請先擲銅錢或報數起卦。</div>
   </section>
+
+  <section class="card" id="historyCard">
+    <h2 class="seal-title"><span class="seal-tag">史</span>歷史紀錄<span class="sub" id="historyCount"></span><button class="mini-btn" id="historyViewAll" style="margin-left:auto">查看全部 →</button></h2>
+    <div id="historyPreviewBox"></div>
+    <div id="historyEmpty" class="empty-tip" hidden>歷史尚無記錄。起一卦後會自動存檔。</div>
+  </section>
+</div>
+
+<div id="historyOverlay" class="bmk-overlay hidden">
+  <div class="bmk-pop" style="max-width:520px;width:100%">
+    <button class="bmk-close" id="historyClose">✕</button>
+    <div class="bmk-card" style="width:100%;max-height:78vh;display:flex;flex-direction:column">
+      <div style="font-family:var(--font-display);font-weight:700;letter-spacing:0.18em;margin-bottom:12px">歷史紀錄 <span id="historyOverlayCount" style="font-weight:400;color:var(--ink-3)"></span></div>
+      <div id="historyListBox" style="overflow:auto;flex:1;display:flex;flex-direction:column;gap:8px"></div>
+      <button class="mini-btn" id="historyClearAll" style="margin-top:14px;border-color:var(--cinnabar);color:var(--cinnabar)">清空全部</button>
+    </div>
+  </div>
 </div>
 
 <div id="noteTip" class="note-tip hidden"></div>
@@ -1149,6 +1177,100 @@ $('bmkClose').addEventListener('click', closeBookmark);
 $('bmkOverlay').addEventListener('click', e => {
   if (e.target === $('bmkOverlay')) closeBookmark();
 });
+
+function gradeLabelForRecord(r){
+  try{
+    const upper = parseInt(r.hgKey[0], 10);
+    const lower = parseInt(r.hgKey[1], 10);
+    if(!(upper>=1 && upper<=8 && lower>=1 && lower<=8)) return '';
+    const hg = buildHexagram(upper, lower);
+    // Use record's day/yongshen context if available, then restore
+    const savedDayIdx = dayIdx, savedDayZhi = dayZhi, savedDayGan = dayGan;
+    const savedYS = $('yongshenSel').value;
+    try{
+      if(typeof r.dayIdx==='number') dayIdx = r.dayIdx;
+      if(r.dayZhi) dayZhi = r.dayZhi;
+      if(r.dayGan) dayGan = r.dayGan;
+      if(typeof r.yongshen==='string') $('yongshenSel').value = r.yongshen || '';
+      const label = computeGrade(hg, r.moving || []).label;
+      return label || '';
+    } catch{ return ''; }
+    finally{
+      dayIdx = savedDayIdx; dayZhi = savedDayZhi; dayGan = savedDayGan;
+      $('yongshenSel').value = savedYS;
+    }
+  }catch{ return '' }
+}
+function renderHistoryPreview(){
+  const list = historyStore.load();
+  $('historyCount').textContent = list.length?`· 共 ${list.length} 筆`:'';
+  $('historyViewAll').style.display = list.length>3?'':'none';
+  const box=$('historyPreviewBox'), empty=$('historyEmpty');
+  if(!list.length){ box.innerHTML=''; empty.hidden=false; return }
+  empty.hidden=true;
+  box.innerHTML = list.slice(0,3).map(r=>{
+    const arrow = r.changedName?` → ${r.changedName}`:'';
+    const ys = r.yongshen?` · ${r.yongshen}`:'';
+    const grade = gradeLabelForRecord(r);
+    const gradeHTML = grade?`<span class="history-grade">${grade}</span>`:'';
+    return `<div class="history-item" data-id="${r.id}"><span class="history-meta"><b>${r.hgName}${arrow}</b> · ${r.dateISO}${ys}</span><span style="display:flex;gap:8px;align-items:center">${gradeHTML}<button class="history-del" data-del="${r.id}">×</button></span></div>`;
+  }).join('');
+}
+function renderHistoryList(){
+  const list=historyStore.load();
+  $('historyOverlayCount').textContent = list.length?`（${list.length}）`:'';
+  const box=$('historyListBox');
+  if(!list.length){ box.innerHTML='<div class="empty-tip">尚無歷史</div>'; return }
+  box.innerHTML = list.map(r=>{
+    const arrow = r.changedName?` → ${r.changedName}`:'';
+    const ys = r.yongshen?` · ${r.yongshen}`:'';
+    const grade = gradeLabelForRecord(r);
+    const gradeHTML = grade?`<span class="history-grade">${grade}</span>`:'';
+    return `<div class="history-item" data-id="${r.id}"><span class="history-meta"><b>${r.hgName}${arrow}</b><br><span style="font-size:12px;color:var(--ink-3)">${r.dateISO} · ${r.ganzhiText||''}${ys}</span></span><span style="display:flex;gap:8px;align-items:center">${gradeHTML}<button class="history-del" data-del="${r.id}">×</button></span></div>`;
+  }).join('');
+}
+function openHistory(){ renderHistoryList(); $('historyOverlay').classList.remove('hidden'); }
+function closeHistory(){ $('historyOverlay').classList.add('hidden'); }
+function restoreHistory(id){
+  const rec = historyStore.load().find(x=>x.id===id);
+  if(!rec) return;
+  $('dateInput').value = rec.dateISO;
+  updateGanzhi();
+  if(typeof rec.dayIdx==='number') dayIdx = rec.dayIdx;
+  if(rec.dayZhi) dayZhi = rec.dayZhi;
+  if(rec.dayGan) dayGan = rec.dayGan;
+  if(rec.ganzhiText) $('ganzhiText').textContent = rec.ganzhiText;
+  $('yongshenSel').value = rec.yongshen || '';
+  if(rec.source==='coins' && rec.lines && rec.lines.length){
+    lines = rec.lines.map(l=>({coins:[...l.coins], backs:l.backs, symbol:l.symbol, moving:l.moving}));
+    renderLines();
+    renderCoins(lines.length?lines[lines.length-1].coins:null);
+    const {upper, lower}=trigramFromLines(lines);
+    const movingSymbols={}; (rec.moving||[]).forEach(i=> movingSymbols[i]= (rec.movingSymbols && rec.movingSymbols[i]) || (rec.movingSymbols && rec.movingSymbols[String(i)]) || '○');
+    renderResult(cast(upper,lower,rec.moving||[]), movingSymbols);
+  } else {
+    const upper= parseInt(rec.hgKey[0],10), lower=parseInt(rec.hgKey[1],10);
+    const movingSymbols={}; (rec.moving||[]).forEach(i=> movingSymbols[i]= (rec.movingSymbols && (rec.movingSymbols[i]||rec.movingSymbols[String(i)])) || '●');
+    lines=[]; $('linesBox').innerHTML='';
+    renderResult(cast(upper,lower,rec.moving||[]), movingSymbols);
+  }
+  closeHistory();
+  $('resultBox').scrollIntoView({behavior:'smooth', block:'center'});
+}
+$('historyBtn').addEventListener('click', openHistory);
+$('historyViewAll').addEventListener('click', openHistory);
+$('historyClose').addEventListener('click', closeHistory);
+$('historyOverlay').addEventListener('click', e=>{ if(e.target===$('historyOverlay')) closeHistory(); });
+$('historyClearAll').addEventListener('click', ()=>{ if(confirm('確定清空全部歷史？')){ historyStore.clear(); renderHistoryPreview(); renderHistoryList(); }});
+$('historyPreviewBox').addEventListener('click', e=>{
+  const del=e.target.closest('[data-del]'); if(del){ e.stopPropagation(); historyStore.remove(del.dataset.del); renderHistoryPreview(); renderHistoryList(); return; }
+  const item=e.target.closest('.history-item'); if(item) restoreHistory(item.dataset.id);
+});
+$('historyListBox').addEventListener('click', e=>{
+  const del=e.target.closest('[data-del]'); if(del){ e.stopPropagation(); historyStore.remove(del.dataset.del); renderHistoryPreview(); renderHistoryList(); return; }
+  const item=e.target.closest('.history-item'); if(item) restoreHistory(item.dataset.id);
+});
+renderHistoryPreview();
 
 const SIXSHEN_NOTE = { 青龍:'主吉慶喜事、酒色財帛', 朱雀:'主口舌文書、言談爭訟', 勾陳:'主田土牢獄、遲滯牽連', 螣蛇:'主虛驚怪異、驚恐纏擾', 白虎:'主凶喪血光、刑傷急速', 玄武:'主暗昧盜賊、曖昧隱私' };
 const LIUQIN_NOTE = { 父母:'生我者，主長輩文書、保護庇蔭', 兄弟:'同我者，主同輩合夥、競爭破財', 子孫:'我生者，主子女晚輩、財源解厄', 妻財:'我剋者，主財帛俸祿、妻妾', 官鬼:'剋我者，主官非事業、壓力疾病' };
