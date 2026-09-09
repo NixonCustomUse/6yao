@@ -21,6 +21,7 @@ struct ContentView: View {
                         BaihuaView(result: result)
                         bookmarkChip(result: result)
                     }
+                    HistoryPreview()
                 }
                 .padding(.horizontal, 16)
                 .padding(.bottom, 30)
@@ -44,6 +45,7 @@ struct ContentView: View {
         }
         .animation(Theme.spring, value: note)
         .onAppear { HapticManager.shared.prepare() }
+        .sheet(isPresented: $model.showHistory) { HistorySheet() }
     }
 
     private var header: some View {
@@ -72,10 +74,26 @@ struct ContentView: View {
                         .onChange(of: model.castDate) { model.updateDay() }
                     Spacer()
                 }
-                Text(model.ganzhiText)
-                    .font(Theme.song(12.5))
-                    .foregroundColor(.ink3)
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                HStack(spacing: 8) {
+                    Text(model.ganzhiText)
+                        .font(Theme.song(12.5))
+                        .foregroundColor(.ink3)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                    Spacer(minLength: 8)
+                    Button {
+                        HapticManager.shared.selectionChanged()
+                        model.showHistory = true
+                    } label: {
+                        Text("史")
+                            .font(Theme.kai(13))
+                            .foregroundColor(.paper2)
+                            .frame(width: 28, height: 28)
+                            .background(Color.cinnabar, in: RoundedRectangle(cornerRadius: 2))
+                            .overlay(RoundedRectangle(cornerRadius: 2).stroke(Color.cinnabarDeep, lineWidth: 1))
+                    }
+                    .accessibilityLabel("歷史紀錄")
+                }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 10)
