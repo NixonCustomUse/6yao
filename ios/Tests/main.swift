@@ -134,5 +134,67 @@ eq("History decode failure returns []", HistoryStore.load(), [] as [HistoryRecor
 HistoryStore.clear()
 eq("History after corrupt clear", HistoryStore.load().count, 0)
 
+// 22. Grade consistency via history record (spec Task6/7)
+let castA = cast(upper: 1, lower: 1, moving: [0], data: data)
+let gLive = computeGrade(hg: castA.hg, moving: castA.moving, yongshen: "妻財", dayZhi: "子", dayIdx: 0)
+let recG = HistoryRecord(id: "g1", ts: 0, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "妻財", hgKey: castA.hg.key, changedKey: castA.changed?.key, hgName: castA.hg.name, changedName: castA.changed?.name, moving: castA.moving, movingSymbols: [0: "○"], bits: castA.hg.bits, dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: HistoryRecord.NumbersInput(a: 1, b: 2, c: 3))
+let hgRecon = buildHexagram(upper: Int(String(recG.hgKey.prefix(1)))!, lower: Int(String(recG.hgKey.suffix(1)))!, data: data)
+let gFromRec = computeGrade(hg: hgRecon, moving: recG.moving, yongshen: recG.yongshen, dayZhi: recG.dayZhi, dayIdx: recG.dayIdx)
+eq("Grade consistency via history", gLive.label, gFromRec.label)
+eq("Grade consistency hgKey preserved", recG.hgKey, castA.hg.key)
+eq("Grade consistency bits preserved", recG.bits, castA.hg.bits)
+
+// 23. Yongshen restore roundTrip + 世爻 special
+HistoryStore.clear()
+let recYS = HistoryRecord(id: "ys1", ts: 0, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "官鬼", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [], movingSymbols: [:], bits: [1,1,1,1,1,1], dayIdx: 10, dayGan: "甲", dayZhi: "戌", lines: nil, source: "numbers", inputs: nil)
+HistoryStore.push(recYS)
+let loadedYS = HistoryStore.load().first!
+eq("Yongshen restore roundTrip", loadedYS.yongshen, "官鬼")
+eq("Yongshen grade uses restored yongshen", computeGrade(hg: buildHexagram(upper: 1, lower: 1, data: data), moving: loadedYS.moving, yongshen: loadedYS.yongshen, dayZhi: loadedYS.dayZhi, dayIdx: loadedYS.dayIdx).label, computeGrade(hg: buildHexagram(upper: 1, lower: 1, data: data), moving: [], yongshen: "官鬼", dayZhi: "戌", dayIdx: 10).label)
+eq("Yongshen 世爻 index == shi", yongshenIndex(hg: buildHexagram(upper: 1, lower: 1, data: data), yongshen: "世爻"), buildHexagram(upper: 1, lower: 1, data: data).shi)
+let hgQian = buildHexagram(upper: 1, lower: 1, data: data)
+eq("Yongshen 妻財 index valid", hgQian.liuqin.contains("妻財"), true)
+eq("Yongshen 妻財 index matches first occurrence", yongshenIndex(hg: hgQian, yongshen: "妻財"), hgQian.liuqin.firstIndex(of: "妻財")!)
+HistoryStore.clear()
+let recShi = HistoryRecord(id: "shi", ts: 0, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "世爻", hgKey: "88", changedKey: nil, hgName: "坤為地", changedName: nil, moving: [2], movingSymbols: [2: "●"], bits: [0,0,0,0,0,0], dayIdx: 20, dayGan: "丙", dayZhi: "寅", lines: nil, source: "numbers", inputs: nil)
+HistoryStore.push(recShi)
+eq("History 世爻 roundTrip", HistoryStore.load().first?.yongshen, "世爻")
+let hg88 = buildHexagram(upper: 8, lower: 8, data: data)
+eq("世爻 grade after restore", computeGrade(hg: hg88, moving: [2], yongshen: "世爻", dayZhi: "寅", dayIdx: 20).label, computeGrade(hg: hg88, moving: recShi.moving, yongshen: HistoryStore.load().first!.yongshen, dayZhi: recShi.dayZhi, dayIdx: recShi.dayIdx).label)
+
+// 24. sixShen correctness (回歸)
+eq("sixShen 甲 start 青龍", sixShen(dayGan: "甲"), ["青龍","朱雀","勾陳","螣蛇","白虎","玄武"])
+eq("sixShen 丙 start 朱雀", sixShen(dayGan: "丙")[0], "朱雀")
+eq("sixShen 戊", sixShen(dayGan: "戊"), ["勾陳","螣蛇","白虎","玄武","青龍","朱雀"])
+eq("sixShen 癸", sixShen(dayGan: "癸"), ["玄武","青龍","朱雀","勾陳","螣蛇","白虎"])
+
+// 25. History 51 limit keeps 50 (Task7 Step6 Web對應)
+HistoryStore.clear()
+for i in 0..<51 {
+    let r = HistoryRecord(id: "p\(i)", ts: Double(i), dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [], movingSymbols: [:], bits: [1,1,1,1,1,1], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: nil)
+    HistoryStore.push(r)
+}
+eq("History 51 limit keeps 50", HistoryStore.load().count, 50)
+eq("History 51 newest first", HistoryStore.load().first?.id, "p50")
+eq("History 51 oldest is p1", HistoryStore.load().last?.id, "p1")
+
+// 26. yongshenSel 切換仍正常 (grade不崩潰, 書籤結構正常)
+let hgTest = buildHexagram(upper: 1, lower: 5, data: data) // 天風姤
+let gA = computeGrade(hg: hgTest, moving: [2], yongshen: "妻財", dayZhi: "午", dayIdx: 20)
+let gB = computeGrade(hg: hgTest, moving: [2], yongshen: "兄弟", dayZhi: "午", dayIdx: 20)
+eq("yongshenSel switch grade still string", gA.label.isEmpty, false)
+eq("yongshenSel switch grade B still string", gB.label.isEmpty, false)
+let rsB = readingSections(c: cast(upper: 1, lower: 5, moving: [2], data: data), movingSymbols: [2: "○"], data: data)
+eq("Reading still has classical卦辭標記", rsB.classical.flatMap({$0.lines}).joined().contains("卦辭："), true)
+eq("Reading fallback yongshen empty uses shi", yongshenIndex(hg: hgTest, yongshen: ""), hgTest.shi)
+eq("HistoryRecord inputs preserved after clear-repush", {
+    HistoryStore.clear()
+    let rr = HistoryRecord(id: "inp", ts: 1, dateISO: "2026-09-08", ganzhiText: "甲子", yongshen: "", hgKey: "11", changedKey: nil, hgName: "乾為天", changedName: nil, moving: [1], movingSymbols: [1:"●"], bits: [1,1,1,1,1,1], dayIdx: 0, dayGan: "甲", dayZhi: "子", lines: nil, source: "numbers", inputs: HistoryRecord.NumbersInput(a: 9, b: 10, c: 11))
+    HistoryStore.push(rr)
+    return HistoryStore.load().first?.inputs ?? HistoryRecord.NumbersInput(a: 0, b: 0, c: 0)
+}(), HistoryRecord.NumbersInput(a: 9, b: 10, c: 11))
+
+HistoryStore.clear()
+
 print("\n\(pass) passed, \(fail) failed")
 exit(fail == 0 ? 0 : 1)
