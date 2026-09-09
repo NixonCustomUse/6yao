@@ -1009,7 +1009,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 let casting = false;
 
 $('tossBtn').addEventListener('click', () => {
-  if (lines.length >= 6 || casting) return;
+  if (casting) return;
+  if (lastCast) { try{ historyStore.push(buildRecordFromCast(lastCast.c, lastCast.movingSymbols, lastCast.source || (lastCast.inputs ? 'numbers' : 'coins'), lastCast.inputs||null)); }catch{} renderHistoryPreview(); }
   casting = true;
   $('tossBtn').disabled = true;
   $('undoBtn').disabled = true;
@@ -1034,7 +1035,9 @@ $('tossBtn').addEventListener('click', () => {
     lines.forEach((l, i) => {
       if (l.moving) { movingIndexes.push(i); movingSymbols[i] = l.symbol; }
     });
-    renderResult(cast(upper, lower, movingIndexes), movingSymbols);
+    const c = cast(upper, lower, movingIndexes);
+    renderResult(c, movingSymbols);
+    lastCast = { c, movingSymbols, source: 'coins', inputs: null };
     casting = false;
     $('tossBtn').disabled = false;
     $('undoBtn').disabled = false;
@@ -1087,10 +1090,15 @@ $('castBtn').addEventListener('click', () => {
     return;
   }
   $('numError').textContent = '';
+  if (lastCast) { try{ historyStore.push(buildRecordFromCast(lastCast.c, lastCast.movingSymbols, lastCast.source || (lastCast.inputs ? 'numbers' : 'coins'), lastCast.inputs||null)); }catch{} renderHistoryPreview(); }
   const upper = a % 8 === 0 ? 8 : a % 8;
   const lower = b % 8 === 0 ? 8 : b % 8;
   const moving = c % 6 === 0 ? 6 : c % 6;
-  renderResult(cast(upper, lower, [moving - 1]), { [moving - 1]: '●' });
+  const res = cast(upper, lower, [moving - 1]);
+  const sym = { [moving - 1]: '●' };
+  renderResult(res, sym);
+  lastCast = { c: res, movingSymbols: sym, source: 'numbers', inputs: { a, b, c } };
+  renderHistoryPreview();
   openBookmark();
 });
 
@@ -1250,11 +1258,13 @@ function restoreHistory(id){
     const {upper, lower}=trigramFromLines(lines);
     const movingSymbols={}; (rec.moving||[]).forEach(i=> movingSymbols[i]= (rec.movingSymbols && rec.movingSymbols[i]) || (rec.movingSymbols && rec.movingSymbols[String(i)]) || '○');
     renderResult(cast(upper,lower,rec.moving||[]), movingSymbols);
+    lastCast.source = rec.source; lastCast.inputs = rec.inputs||null;
   } else {
     const upper= parseInt(rec.hgKey[0],10), lower=parseInt(rec.hgKey[1],10);
     const movingSymbols={}; (rec.moving||[]).forEach(i=> movingSymbols[i]= (rec.movingSymbols && (rec.movingSymbols[i]||rec.movingSymbols[String(i)])) || '●');
     lines=[]; $('linesBox').innerHTML='';
     renderResult(cast(upper,lower,rec.moving||[]), movingSymbols);
+    lastCast.source = rec.source; lastCast.inputs = rec.inputs||null;
   }
   closeHistory();
   $('resultBox').scrollIntoView({behavior:'smooth', block:'center'});
@@ -1349,7 +1359,8 @@ function readingHTML(c, movingSymbols) {
 }
 
 function renderResult(c, movingSymbols) {
-  lastCast = { c, movingSymbols };
+  const _prev = lastCast;
+  lastCast = { c, movingSymbols, source: _prev && _prev.source || 'coins', inputs: _prev && _prev.inputs || null };
   const box = $('resultBox');
   box.innerHTML = `
     <div class="pling">
