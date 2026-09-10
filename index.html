@@ -1034,14 +1034,17 @@ $('tossBtn').addEventListener('click', () => {
   $('resultBox').innerHTML = '尚未起卦。請先擲銅錢或報數起卦。';
   $('readingBox').innerHTML = '';
   $('baihuaBox').innerHTML = '尚未起卦。請先擲銅錢或報數起卦。';
+  resetTaiji();
   (async () => {
     for (let i = 0; i < 6; i++) {
-      lines.push(tossThreeCoins());
-      renderCoins(lines[i].coins);
-      await sleep(480);
+      const tossed=tossThreeCoins();
+      lines.push(tossed);
+      if(i===0) $('taijiSvg').classList.add('spin');
+      renderTaiji(i, tossed.symbol, tossed.moving);
       renderLines(true);
-      await sleep(420);
+      await sleep(480);
     }
+    setTimeout(()=>{ const t=$('taijiSvg'); if(t) t.style.opacity='0'; },400);
     const { upper, lower } = trigramFromLines(lines);
     const movingIndexes = [];
     const movingSymbols = {};
@@ -1092,6 +1095,31 @@ function renderLines(animateLast) {
     div.innerHTML = `<span class="n">${i + 1}</span>${barHTML(line.symbol, line.moving, animateLast && i === lines.length - 1)}`;
     box.appendChild(div);
   }
+}
+function resetTaiji(){
+  const t=$('taijiSvg'); if(t){ t.classList.remove('spin'); t.style.opacity='1'; void t.offsetWidth; }
+  const linesEl=$('taijiLines'); if(linesEl) linesEl.innerHTML='';
+  const stage=$('taijiStage'); if(stage) stage.style.display='flex';
+}
+function renderTaiji(index, symbol, moving){
+  const el=$('taijiLines');
+  if(!el) return;
+  const yang = symbol==='—' || symbol==='○';
+  const wrap=document.createElement('div');
+  wrap.style.display='flex'; wrap.style.gap='7px'; wrap.style.alignItems='center'; wrap.style.justifyContent='center'; wrap.style.opacity='0'; wrap.style.transition='opacity 0.32s ease';
+  if(moving) wrap.style.filter='drop-shadow(0 0 6px rgba(166,59,42,0.45))';
+  if(yang){
+    const b=document.createElement('span'); b.className='bar yang' + (moving?' move':''); b.style.background=moving?'var(--cinnabar)':'var(--ink)'; b.style.width='86px'; wrap.appendChild(b);
+    setTimeout(()=> b.classList.add('in'), 20);
+  } else {
+    const b1=document.createElement('span'); b1.className='bar yin' + (moving?' move':''); b1.style.background=moving?'var(--cinnabar)':'var(--ink)'; b1.style.width='35px';
+    const b2=document.createElement('span'); b2.className='bar yin' + (moving?' move':''); b2.style.background=moving?'var(--cinnabar)':'var(--ink)'; b2.style.width='35px';
+    wrap.append(b1,b2);
+    setTimeout(()=>{ b1.classList.add('in'); b2.classList.add('in'); },20);
+  }
+  if(moving){ const m=document.createElement('span'); m.className='move-mark'; m.textContent=symbol; m.style.color='var(--cinnabar)'; wrap.appendChild(m); }
+  el.appendChild(wrap);
+  requestAnimationFrame(()=> requestAnimationFrame(()=> wrap.style.opacity='1'));
 }
 
 $('castBtn').addEventListener('click', () => {
@@ -1257,6 +1285,9 @@ function closeHistory(){ $('historyOverlay').classList.add('hidden'); }
 function restoreHistory(id){
   const rec = historyStore.load().find(x=>x.id===id);
   if(!rec) return;
+  if($('taijiStage')) $('taijiStage').style.display='none';
+  if($('taijiLines')) $('taijiLines').innerHTML='';
+  const _ts=$('taijiSvg'); if(_ts){ _ts.classList.remove('spin'); _ts.style.opacity='1'; }
   $('dateInput').value = rec.dateISO;
   updateGanzhi();
   if(typeof rec.dayIdx==='number') dayIdx = rec.dayIdx;
