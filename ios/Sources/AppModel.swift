@@ -8,6 +8,7 @@ final class AppModel: ObservableObject {
     @Published var mode: Mode = .coins
     @Published var lines: [CoinToss] = []
     @Published var casting = false
+    @Published var taijiYao = 0
     @Published var result: CastResult? = nil
     @Published var movingSymbols: [Int: String] = [:]
     @Published var yongshen = ""
@@ -44,6 +45,7 @@ final class AppModel: ObservableObject {
         result = nil
         movingSymbols = [:]
         lines = []
+        taijiYao = 0
         numError = ""
     }
 
@@ -52,12 +54,14 @@ final class AppModel: ObservableObject {
         if result != nil { pushHistory() }
         casting = true
         lines = []
+        taijiYao = 0
         result = nil
         movingSymbols = [:]
         for _ in 0..<6 {
             let intensity = Double.random(in: 0.4...0.7)
             HapticManager.shared.impact(.light, intensity: intensity)
             lines.append(tossThreeCoins())
+            taijiYao = lines.count
             try? await Task.sleep(nanoseconds: 480_000_000)
         }
         finalize(triggerBookmark: true)
@@ -68,6 +72,7 @@ final class AppModel: ObservableObject {
     func undo() {
         guard !casting, !lines.isEmpty else { return }
         lines.removeLast()
+        taijiYao = lines.count
         result = nil
         movingSymbols = [:]
         HapticManager.shared.impact(.light, intensity: 0.4)
@@ -202,6 +207,7 @@ final class AppModel: ObservableObject {
             )
         }
         lines = record.coinTosses ?? []
+        taijiYao = lines.count
         movingSymbols = record.movingSymbols
         guard record.hgKey.count == 2,
               let upper = Int(String(record.hgKey.prefix(1))),
