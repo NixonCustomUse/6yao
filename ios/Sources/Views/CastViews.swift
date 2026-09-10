@@ -4,23 +4,10 @@ import SwiftUI
 
 struct CoinsCastView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var spin = 0.0
 
     var body: some View {
         CardView(seal: "起卦", title: "搖錢問事") {
-            HStack(spacing: 26) {
-                ForEach(0..<3, id: \.self) { i in
-                    CoinView(face: model.lines.last.map { $0.coins[i] ? "背" : "字" } ?? "背",
-                             spinDegrees: spin)
-                }
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .onChange(of: model.lines.count) {
-                withAnimation(Theme.spring) {
-                    spin = (spin.truncatingRemainder(dividingBy: 360)) + 360
-                }
-            }
+            TaijiView(isAnimating: model.casting, currentYao: model.taijiYao, tosses: model.lines)
 
             Text("三背 ○ 老陽 · 二背 — 少陽 · 一背 - - 少陰 · 無背 × 老陰")
                 .font(Theme.song(12))
@@ -225,5 +212,82 @@ struct HexBars: View {
         RoundedRectangle(cornerRadius: 2)
             .fill(moving ? Color.cinnabar : Color.ink)
             .frame(width: width, height: 10)
+    }
+}
+
+// MARK: - 太極生爻
+
+struct TaijiView: View {
+    let isAnimating: Bool
+    let currentYao: Int
+    let tosses: [CoinToss]
+
+    var body: some View {
+        ZStack {
+            Canvas { ctx, size in
+                let r = min(size.width, size.height) / 2
+                let c = CGPoint(x: size.width / 2, y: size.height / 2)
+                let outerRect = CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)
+                let white = Color(hex: 0xF9F5EA)
+                let black = Color(hex: 0x1A1A1E)
+                let gold = Color(hex: 0xC99D4F)
+                let line2 = Color(hex: 0xC2B495)
+
+                // 底：白底外圓
+                ctx.fill(Path(ellipseIn: outerRect), with: .color(white))
+
+                // 左半黑（外圈左半 + 直徑）
+                var leftHalf = Path()
+                leftHalf.move(to: CGPoint(x: c.x, y: c.y - r))
+                leftHalf.addArc(center: c, radius: r, startAngle: .degrees(-90), endAngle: .degrees(90), clockwise: false)
+                leftHalf.closeSubpath()
+                ctx.fill(leftHalf, with: .color(black))
+
+                // 上魚眼凸起（黑）與下魚眼凹陷（白）
+                let topCenter = CGPoint(x: c.x, y: c.y - r / 2)
+                let bottomCenter = CGPoint(x: c.x, y: c.y + r / 2)
+                ctx.fill(Path(ellipseIn: CGRect(x: topCenter.x - r / 2, y: topCenter.y - r / 2, width: r, height: r)), with: .color(black))
+                ctx.fill(Path(ellipseIn: CGRect(x: bottomCenter.x - r / 2, y: bottomCenter.y - r / 2, width: r, height: r)), with: .color(white))
+
+                // 外圈
+                ctx.stroke(Path(ellipseIn: outerRect), with: .color(line2), lineWidth: 1.5)
+
+                // 魚眼
+                let eyeOuterR: CGFloat = 6
+                let eyeDotR: CGFloat = 2.5
+                // 上眼：白底黑邊 + 金點
+                ctx.fill(Path(ellipseIn: CGRect(x: topCenter.x - eyeOuterR, y: topCenter.y - eyeOuterR, width: eyeOuterR * 2, height: eyeOuterR * 2)), with: .color(white))
+                ctx.stroke(Path(ellipseIn: CGRect(x: topCenter.x - eyeOuterR, y: topCenter.y - eyeOuterR, width: eyeOuterR * 2, height: eyeOuterR * 2)), with: .color(black), lineWidth: 1)
+                ctx.fill(Path(ellipseIn: CGRect(x: topCenter.x - eyeDotR, y: topCenter.y - eyeDotR, width: eyeDotR * 2, height: eyeDotR * 2)), with: .color(gold))
+                // 下眼：黑底白邊 + 金點
+                ctx.fill(Path(ellipseIn: CGRect(x: bottomCenter.x - eyeOuterR, y: bottomCenter.y - eyeOuterR, width: eyeOuterR * 2, height: eyeOuterR * 2)), with: .color(black))
+                ctx.stroke(Path(ellipseIn: CGRect(x: bottomCenter.x - eyeOuterR, y: bottomCenter.y - eyeOuterR, width: eyeOuterR * 2, height: eyeOuterR * 2)), with: .color(white), lineWidth: 1)
+                ctx.fill(Path(ellipseIn: CGRect(x: bottomCenter.x - eyeDotR, y: bottomCenter.y - eyeDotR, width: eyeDotR * 2, height: eyeDotR * 2)), with: .color(gold))
+            }
+            .frame(width: 96, height: 96)
+            .rotationEffect(.degrees(isAnimating ? 180 : 0))
+            .animation(.timingCurve(0.22, 1, 0.36, 1, duration: 0.8), value: isAnimating)
+
+            VStack(spacing: 4) {
+                ForEach((0..<6).reversed(), id: \.self) { i in
+                    if i < currentYao, let t = tosses[safe: i] {
+                        HexBars(symbol: t.symbol, moving: t.moving, grow: true)
+                            .transition(.scale.combined(with: .opacity))
+                    }
+                }
+            }
+        }
+        .frame(height: 120)
+        .frame(maxWidth: .infinity)
+        .background(
+            RadialGradient(colors: [Color.ink.opacity(0.06), .clear], center: .center, startRadius: 20, endRadius: 80)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+}
+
+extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
