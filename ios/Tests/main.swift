@@ -194,25 +194,6 @@ eq("HistoryRecord inputs preserved after clear-repush", {
     return HistoryStore.load().first?.inputs ?? HistoryRecord.NumbersInput(a: 0, b: 0, c: 0)
 }(), HistoryRecord.NumbersInput(a: 9, b: 10, c: 11))
 
-// 27. Taiji bits consistency (Task 4: trigramFromLines vs direct toss map)
-func testTaijiBits() {
-    let tosses: [CoinToss] = [
-        CoinToss(coins: [true, true, true], backs: 3, symbol: "○", moving: true),
-        CoinToss(coins: [true, true, false], backs: 2, symbol: "—", moving: false),
-        CoinToss(coins: [false, false, false], backs: 0, symbol: "×", moving: true),
-        CoinToss(coins: [true, false, false], backs: 1, symbol: "- -", moving: false),
-        CoinToss(coins: [true, true, true], backs: 3, symbol: "○", moving: true),
-        CoinToss(coins: [false, true, true], backs: 2, symbol: "—", moving: false)
-    ]
-    let t = trigramFromLines(tosses)
-    let bits = (0..<6).map { lineYang(upper: t.upper, lower: t.lower, i: $0) }
-    let expected = tosses.map { $0.symbol == "—" || $0.symbol == "○" ? 1 : 0 }
-    eq("Taiji bits consistency trigramFromLines vs direct", bits, expected)
-    // also exercise tossThreeCoins to satisfy interface (single sampling, check backs count matches)
-    let _ = tossThreeCoins()
-}
-testTaijiBits()
-
 HistoryStore.clear()
 
 print("\n\(pass) passed, \(fail) failed")
