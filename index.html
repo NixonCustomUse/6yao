@@ -438,8 +438,41 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
 #coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
 section.card:nth-of-type(3) { animation-delay: 0.65s; }
 section.card:nth-of-type(4) { animation-delay: 0.75s; }
-/* 銅錢：水墨成爻 — 輕點 + 短翻轉（主角讓給筆墨爻線） */
-.coins { gap: 24px; perspective: 800px; position: relative; padding-bottom: 14px; }
+/* 銅錢：竹筒搖出 — 筒搖三下，錢應聲彈出（爻線水墨不變） */
+.coins { gap: 8px; perspective: 800px; position: relative; padding-bottom: 14px; flex-direction: column; align-items: center; }
+.coin-row { display: flex; gap: 24px; justify-content: center; perspective: 800px; }
+.tube {
+  width: 40px; height: 54px; position: relative;
+  transform-origin: 50% 0;
+  background:
+    linear-gradient(90deg, rgba(43, 38, 32, 0.28), transparent 22% 78%, rgba(43, 38, 32, 0.32)),
+    linear-gradient(180deg, #dcbd7f, var(--gold) 60%, #a8823f);
+  border: 2px solid #8f6a2b; border-top: none;
+  border-radius: 3px 3px 9px 9px;
+  box-shadow: 0 4px 10px -4px rgba(80, 60, 20, 0.5);
+}
+.tube::before {
+  content: ""; position: absolute; top: -8px; left: -5px; right: -5px; height: 13px;
+  background: radial-gradient(ellipse at center, #3a2c14 52%, #6b4d1f 72%, #8f6a2b 100%);
+  border-radius: 50%;
+}
+.tube::after {
+  content: ""; position: absolute; left: 1px; right: 1px; bottom: 12px; height: 6px;
+  border-top: 1.5px solid rgba(122, 90, 36, 0.65);
+  background: linear-gradient(180deg, rgba(43, 38, 32, 0.22), transparent);
+}
+.tube.shake { animation: tubeShake 0.36s ease-in-out; }
+@keyframes tubeShake {
+  0%, 100% { transform: rotate(0); }
+  20% { transform: rotate(-10deg); }
+  45% { transform: rotate(8deg); }
+  70% { transform: rotate(-5deg); }
+  85% { transform: rotate(3deg); }
+}
+@media (max-width: 620px) {
+  .coin-row { gap: 16px; }
+  .tube { width: 36px; height: 48px; }
+}
 .coins::after {
   content: "";
   position: absolute;
@@ -466,13 +499,13 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   opacity: 0.85;
   pointer-events: none;
 }
-.coin.toss { animation: coinJump 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-.coin.toss::before { animation: shadowPulse 0.38s ease-out; }
+.coin.toss { animation: coinPop 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.coin.toss::before { animation: shadowPulse 0.4s ease-out; }
 .coin .face { will-change: transform; }
-.coin.toss .face { animation: coinSpin 0.38s linear; }
-@keyframes coinJump {
+.coin.toss .face { animation: coinSpin 0.4s linear; }
+@keyframes coinPop {
   0% { transform: translateY(0); }
-  38% { transform: translateY(-12px); }
+  40% { transform: translateY(-16px); }
   100% { transform: translateY(0); }
 }
 @keyframes coinSpin {
@@ -540,9 +573,12 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   <section class="card" id="coinsPanel">
     <h2 class="seal-title"><span class="seal-tag">起卦</span>搖錢問事<span class="sub">自初爻而上，共六擲</span></h2>
     <div class="coins" id="coinsBox">
-      <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
-      <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
-      <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
+      <div class="tube" id="tube" aria-hidden="true" data-note="搖卦筒：每擲搖三下，銅錢應聲而出"></div>
+      <div class="coin-row">
+        <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
+        <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
+        <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
+      </div>
     </div>
     <div class="coin-legend"><span data-note="三背＝老陽：動爻，陽變陰">三背 <b>○</b> 老陽</span> · <span data-note="二背＝少陽：靜爻">二背 <b>—</b> 少陽</span> · <span data-note="一背＝少陰：靜爻">一背 <b>- -</b> 少陰</span> · <span data-note="無背＝老陰：動爻，陰變陽">無背 <b>×</b> 老陰</span></div>
     <button class="coin-btn" id="tossBtn" data-note="一鍵連擲六次，由下而上排成卦">擲銅錢</button>
@@ -1002,12 +1038,18 @@ function tossThreeCoins() {
 }
 
 function renderCoins(coins) {
+  const tube = $('tube');
+  if (tube) {
+    tube.classList.remove('shake');
+    void tube.offsetWidth;
+    tube.classList.add('shake');
+  }
   const faces = $('coinsBox').querySelectorAll('.coin');
   faces.forEach((c, i) => {
     c.querySelector('.face').textContent = coins && coins[i] ? '背' : '字';
     c.classList.remove('toss');
     void c.offsetWidth;
-    c.style.animationDelay = `${i * 80}ms`;
+    c.style.animationDelay = `${i * 70}ms`;
     c.classList.add('toss');
     setTimeout(() => { c.style.animationDelay = ''; }, 600);
   });
