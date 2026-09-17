@@ -434,8 +434,20 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
 #coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
 section.card:nth-of-type(3) { animation-delay: 0.65s; }
 section.card:nth-of-type(4) { animation-delay: 0.75s; }
-/* 銅錢：簡化 — 輕盈拋物 + 單周翻轉 */
-.coins { gap: 24px; perspective: 800px; }
+/* 銅錢：硯台落錢 — 小跳 + 單周翻轉 + 靜態托盤 */
+.coins { gap: 24px; perspective: 800px; position: relative; padding-bottom: 14px; }
+.coins::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 220px;
+  height: 18px;
+  transform: translateX(-50%);
+  background: radial-gradient(ellipse at center, rgba(43, 38, 32, 0.14), transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+}
 .coin { position: relative; }
 .coin::before {
   content: "";
@@ -450,13 +462,13 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   opacity: 0.85;
   pointer-events: none;
 }
-.coin.toss { animation: coinJump 0.52s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-.coin.toss::before { animation: shadowPulse 0.52s ease-out; }
+.coin.toss { animation: coinJump 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.coin.toss::before { animation: shadowPulse 0.45s ease-out; }
 .coin .face { will-change: transform; }
-.coin.toss .face { animation: coinSpin 0.52s linear; }
+.coin.toss .face { animation: coinSpin 0.45s linear; }
 @keyframes coinJump {
   0% { transform: translateY(0); }
-  38% { transform: translateY(-18px); }
+  38% { transform: translateY(-22px); }
   100% { transform: translateY(0); }
 }
 @keyframes coinSpin {
@@ -993,6 +1005,7 @@ function renderCoins(coins) {
     void c.offsetWidth;
     c.style.animationDelay = `${i * 80}ms`;
     c.classList.add('toss');
+    setTimeout(() => { c.style.animationDelay = ''; }, 600);
   });
 }
 
@@ -1025,9 +1038,9 @@ $('tossBtn').addEventListener('click', () => {
     for (let i = 0; i < 6; i++) {
       lines.push(tossThreeCoins());
       renderCoins(lines[i].coins);
-      await sleep(480);
+      await sleep(350);
       renderLines(true);
-      await sleep(420);
+      await sleep(300);
     }
     const { upper, lower } = trigramFromLines(lines);
     const movingIndexes = [];
