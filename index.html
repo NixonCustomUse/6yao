@@ -189,8 +189,12 @@ h1.title {
 .bar.yin { width: 35px; }
 .line-draw { display: flex; align-items: center; gap: 7px; flex: 1; }
 .bar.grow { animation: barGrow 0.45s cubic-bezier(0.22, 0.9, 0.3, 1) both; }
-@keyframes barGrow { from { transform: scaleX(0); } }
-.move-mark { font-family: var(--font-display); color: var(--cinnabar); font-size: 15px; line-height: 1; }
+@keyframes barGrow { from { transform: scaleX(0); filter: blur(3px); } to { filter: blur(0); } }
+.move-mark { font-family: var(--font-display); color: var(--cinnabar); font-size: 15px; line-height: 1; display: inline-block; animation: stampIn 0.4s cubic-bezier(0.2, 1.4, 0.3, 1) both; }
+/* 水墨成爻：陰爻第二筆晚 90ms；新爻行襯一筆淡墨 */
+.line-draw .bar.yin.grow:nth-of-type(2) { animation-delay: 90ms; }
+.line-box.fresh { animation: inkWash 0.6s ease-out both; }
+@keyframes inkWash { from { background-color: rgba(166, 59, 42, 0.1); } to { background-color: transparent; } }
 
 .num-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 14px; }
 .num-grid label { display: block; font-size: 13px; color: var(--ink-3); letter-spacing: 0.15em; margin-bottom: 6px; font-family: var(--font-display); }
@@ -434,7 +438,7 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
 #coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
 section.card:nth-of-type(3) { animation-delay: 0.65s; }
 section.card:nth-of-type(4) { animation-delay: 0.75s; }
-/* 銅錢：硯台落錢 — 小跳 + 單周翻轉 + 靜態托盤 */
+/* 銅錢：水墨成爻 — 輕點 + 短翻轉（主角讓給筆墨爻線） */
 .coins { gap: 24px; perspective: 800px; position: relative; padding-bottom: 14px; }
 .coins::after {
   content: "";
@@ -462,13 +466,13 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   opacity: 0.85;
   pointer-events: none;
 }
-.coin.toss { animation: coinJump 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-.coin.toss::before { animation: shadowPulse 0.45s ease-out; }
+.coin.toss { animation: coinJump 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+.coin.toss::before { animation: shadowPulse 0.38s ease-out; }
 .coin .face { will-change: transform; }
-.coin.toss .face { animation: coinSpin 0.45s linear; }
+.coin.toss .face { animation: coinSpin 0.38s linear; }
 @keyframes coinJump {
   0% { transform: translateY(0); }
-  38% { transform: translateY(-22px); }
+  38% { transform: translateY(-12px); }
   100% { transform: translateY(0); }
 }
 @keyframes coinSpin {
@@ -1088,7 +1092,7 @@ function renderLines(animateLast) {
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const div = document.createElement('div');
-    div.className = 'line-box';
+    div.className = 'line-box' + (animateLast && i === lines.length - 1 ? ' fresh' : '');
     div.innerHTML = `<span class="n">${i + 1}</span>${barHTML(line.symbol, line.moving, animateLast && i === lines.length - 1)}`;
     box.appendChild(div);
   }
