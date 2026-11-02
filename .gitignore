@@ -1,19 +1,6 @@
 # macOS
 .DS_Store
 
-# Xcode
-xcuserdata/
-*.xcuserstate
-*.xcscmblueprint
-DerivedData/
-build/
-*.hmap
-*.ipa
-
-# Swift Package Manager
-.build/
-.swiftpm/
-
 # Wrangler / Cloudflare
 .wrangler/
 .dev.vars
