@@ -97,7 +97,7 @@ h1.title {
   padding: 9px 24px; cursor: pointer;
   color: var(--cinnabar); background: transparent;
   border: 1.5px solid var(--cinnabar); border-radius: 3px;
-  transition: all 0.18s ease;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 .tab:hover { background: var(--cinnabar-soft); }
 .tab.active {
@@ -139,14 +139,17 @@ h1.title {
   box-shadow: 0 3px 0 var(--cinnabar-deep), 0 12px 20px -12px rgba(125, 42, 28, 0.55);
   transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
-.coin-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--cinnabar-deep), 0 14px 22px -12px rgba(125, 42, 28, 0.55); }
+.coin-btn:hover { background: var(--cinnabar); }
+@media (hover: hover) and (pointer: fine) {
+  .coin-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 0 var(--cinnabar-deep), 0 14px 22px -12px rgba(125, 42, 28, 0.55); }
+}
 .coin-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--cinnabar-deep); }
 .coin-btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; box-shadow: 0 3px 0 var(--cinnabar-deep); }
 .mini-btn {
   font-family: var(--font-display); font-size: 13px; letter-spacing: 0.2em; text-indent: 0.2em;
   color: var(--ink-2); background: transparent;
   border: 1px solid var(--line-2); border-radius: 3px; padding: 8px 16px; cursor: pointer;
-  transition: all 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 .mini-btn:hover { border-color: var(--cinnabar); color: var(--cinnabar); background: var(--cinnabar-soft); }
 .row-actions { display: flex; gap: 10px; margin-top: 16px; }
@@ -184,12 +187,12 @@ h1.title {
 .line-box:last-child { border-bottom: none; }
 .line-box .n { font-family: var(--font-display); font-size: 12px; color: var(--ink-3); width: 22px; letter-spacing: 0.1em; }
 
-.bar { display: block; height: 10px; border-radius: 2px; background: var(--ink); transform-origin: center; }
+.bar { display: block; height: 10px; border-radius: 2px; background: var(--ink); transform-origin: left center; }
 .bar.yang { width: 86px; }
 .bar.yin { width: 35px; }
 .line-draw { display: flex; align-items: center; gap: 7px; flex: 1; }
-.bar.grow { animation: barGrow 0.45s cubic-bezier(0.22, 0.9, 0.3, 1) both; }
-@keyframes barGrow { from { transform: scaleX(0); filter: blur(3px); } to { filter: blur(0); } }
+.bar.grow { animation: barGrow 0.32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes barGrow { from { transform: scaleX(0); opacity: 0.3; } to { transform: scaleX(1); opacity: 1; } }
 .move-mark { font-family: var(--font-display); color: var(--cinnabar); font-size: 15px; line-height: 1; display: inline-block; animation: stampIn 0.4s cubic-bezier(0.2, 1.4, 0.3, 1) both; }
 /* 水墨成爻：陰爻第二筆晚 90ms；新爻行襯一筆淡墨 */
 .line-draw .bar.yin.grow:nth-of-type(2) { animation-delay: 90ms; }
@@ -202,7 +205,7 @@ h1.title {
   width: 100%; padding: 10px;
   font-family: var(--font-display); font-size: 19px; color: var(--ink); text-align: center;
   background: var(--paper-2); border: 1px solid var(--line-2); border-radius: 4px;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .num-grid input:focus { outline: none; border-color: var(--cinnabar); box-shadow: 0 0 0 3px rgba(166, 59, 42, 0.12); }
 .help { font-size: 12.5px; color: var(--ink-3); margin-top: 10px; letter-spacing: 0.03em; }
@@ -247,11 +250,6 @@ h1.title {
 .seal-mini.fill { background: var(--cinnabar); color: var(--paper-2); box-shadow: 1px 1px 0 rgba(125, 42, 28, 0.3); }
 .hex-draw { display: flex; align-items: center; gap: 7px; justify-content: center; }
 .hex-row.move .bar { background: var(--cinnabar); }
-.hex-row.move .hex-draw { animation: moveGlow 2.2s ease-in-out infinite; }
-@keyframes moveGlow {
-  0%, 100% { filter: drop-shadow(0 0 0 rgba(166, 59, 42, 0)); }
-  50% { filter: drop-shadow(0 0 6px rgba(166, 59, 42, 0.45)); }
-}
 .hex-meta { text-align: right; line-height: 1.4; }
 .hex-meta .branch { font-family: var(--font-display); font-size: 16px; font-weight: 700; }
 .hex-row.move .branch { color: var(--cinnabar); }
@@ -438,40 +436,11 @@ h1.title { letter-spacing: 0.18em; text-indent: 0.18em; }
 #coinsPanel { animation: fadeUp 0.6s var(--ease-spring) 0.55s both; }
 section.card:nth-of-type(3) { animation-delay: 0.65s; }
 section.card:nth-of-type(4) { animation-delay: 0.75s; }
-/* 銅錢：竹筒搖出 — 筒搖三下，錢應聲彈出（爻線水墨不變） */
-.coins { gap: 8px; perspective: 800px; position: relative; padding-bottom: 14px; flex-direction: column; align-items: center; }
+/* 銅錢：高處落下 — 下墜加速、落地一彈、影子同步 */
+.coins { gap: 8px; perspective: 800px; position: relative; padding-top: 52px; padding-bottom: 14px; flex-direction: column; align-items: center; }
 .coin-row { display: flex; gap: 24px; justify-content: center; perspective: 800px; }
-.tube {
-  width: 40px; height: 54px; position: relative;
-  transform-origin: 50% 0;
-  background:
-    linear-gradient(90deg, rgba(43, 38, 32, 0.28), transparent 22% 78%, rgba(43, 38, 32, 0.32)),
-    linear-gradient(180deg, #dcbd7f, var(--gold) 60%, #a8823f);
-  border: 2px solid #8f6a2b; border-top: none;
-  border-radius: 3px 3px 9px 9px;
-  box-shadow: 0 4px 10px -4px rgba(80, 60, 20, 0.5);
-}
-.tube::before {
-  content: ""; position: absolute; top: -8px; left: -5px; right: -5px; height: 13px;
-  background: radial-gradient(ellipse at center, #3a2c14 52%, #6b4d1f 72%, #8f6a2b 100%);
-  border-radius: 50%;
-}
-.tube::after {
-  content: ""; position: absolute; left: 1px; right: 1px; bottom: 12px; height: 6px;
-  border-top: 1.5px solid rgba(122, 90, 36, 0.65);
-  background: linear-gradient(180deg, rgba(43, 38, 32, 0.22), transparent);
-}
-.tube.shake { animation: tubeShake 0.36s ease-in-out; }
-@keyframes tubeShake {
-  0%, 100% { transform: rotate(0); }
-  20% { transform: rotate(-10deg); }
-  45% { transform: rotate(8deg); }
-  70% { transform: rotate(-5deg); }
-  85% { transform: rotate(3deg); }
-}
 @media (max-width: 620px) {
   .coin-row { gap: 16px; }
-  .tube { width: 36px; height: 48px; }
 }
 .coins::after {
   content: "";
@@ -499,22 +468,27 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   opacity: 0.85;
   pointer-events: none;
 }
-.coin.toss { animation: coinPop 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
-.coin.toss::before { animation: shadowPulse 0.4s ease-out; }
+.coin.toss { animation: coinDrop 0.46s cubic-bezier(0.3, 0.6, 0.4, 1) both; animation-delay: var(--drop-delay, 0ms); }
+.coin.toss::before { animation: shadowLand 0.46s ease-out both; animation-delay: var(--drop-delay, 0ms); }
 .coin .face { will-change: transform; }
-.coin.toss .face { animation: coinSpin 0.4s linear; }
-@keyframes coinPop {
-  0% { transform: translateY(0); }
-  40% { transform: translateY(-16px); }
-  100% { transform: translateY(0); }
+.coin.toss .face { animation: coinSpin 0.46s linear both; animation-delay: var(--drop-delay, 0ms); }
+/* 落地：高處下墜 → 砸地壓扁 → 小幅回彈 → 落定；X 帶一點隨機偏移 */
+@keyframes coinDrop {
+  0% { transform: translateX(var(--drift, 0px)) translateY(-46px) scale(1, 1); }
+  52% { transform: translateX(var(--drift, 0px)) translateY(0) scale(1.12, 0.88); }
+  72% { transform: translateX(var(--drift, 0px)) translateY(-9px) scale(1, 1); }
+  88% { transform: translateX(var(--drift, 0px)) translateY(0) scale(1.04, 0.96); }
+  100% { transform: translateX(var(--drift, 0px)) translateY(0) scale(1, 1); }
 }
 @keyframes coinSpin {
   0% { transform: rotateX(0); }
-  100% { transform: rotateX(360deg); }
+  100% { transform: rotateX(var(--spin, 360deg)); }
 }
-@keyframes shadowPulse {
-  0% { transform: translateX(-50%) scale(1); opacity: 0.85; }
-  38% { transform: translateX(-50%) scale(0.68); opacity: 0.38; }
+/* 影子反向：錢越高影越小越淡，落地時最深 */
+@keyframes shadowLand {
+  0% { transform: translateX(-50%) scale(0.55); opacity: 0.25; }
+  52% { transform: translateX(-50%) scale(1.08); opacity: 0.9; }
+  72% { transform: translateX(-50%) scale(0.85); opacity: 0.55; }
   100% { transform: translateX(-50%) scale(1); opacity: 0.85; }
 }
 /* 卡片：懸停微浮 */
@@ -523,7 +497,7 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   .card:hover { transform: translateY(-2px); box-shadow: 0 2px 0 rgba(43,38,32,0.06), 0 22px 48px -26px rgba(43,38,32,0.42); }
 }
 /* 卦爻：逐爻展開 */
-.hex-row { opacity: 0; transform: translateY(8px); animation: rowIn 0.45s var(--ease-spring) both; }
+.hex-row { opacity: 0; transform: translateY(8px); animation: rowIn 0.32s var(--ease-spring) both; }
 @keyframes rowIn { to { opacity: 1; transform: none; } }
 /* 解讀：區塊依序淡入 */
 .read-block { animation: fadeUp 0.5s var(--ease-spring) both; }
@@ -531,7 +505,7 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
 .read-block:nth-child(2) { animation-delay: 0.14s; }
 .read-block:nth-child(3) { animation-delay: 0.23s; }
 /* 爻線與變卦線：更柔的生長 */
-.bar.grow { animation: barGrow 0.5s var(--ease-spring) both; }
+.bar.grow { animation: barGrow 0.32s var(--ease-spring) both; }
 /* 書籤與提示：彈性進場 */
 .bmk-pop { animation: bmkIn 0.62s var(--ease-spring) both; }
 .note-tip { animation: noteIn 0.22s var(--ease-spring) both; }
@@ -573,7 +547,6 @@ section.card:nth-of-type(4) { animation-delay: 0.75s; }
   <section class="card" id="coinsPanel">
     <h2 class="seal-title"><span class="seal-tag">起卦</span>搖錢問事<span class="sub">自初爻而上，共六擲</span></h2>
     <div class="coins" id="coinsBox">
-      <div class="tube" id="tube" aria-hidden="true" data-note="搖卦筒：每擲搖三下，銅錢應聲而出"></div>
       <div class="coin-row">
         <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
         <div class="coin" data-note="背：陽面。三背為老陽、二背為少陽"><span class="face">背</span></div>
@@ -1037,21 +1010,21 @@ function tossThreeCoins() {
   return { coins, backs, symbol: backs === 3 ? '○' : backs === 2 ? '—' : backs === 1 ? '- -' : '×', moving };
 }
 
-function renderCoins(coins) {
-  const tube = $('tube');
-  if (tube) {
-    tube.classList.remove('shake');
-    void tube.offsetWidth;
-    tube.classList.add('shake');
-  }
+function renderCoins(coins, animate = true) {
   const faces = $('coinsBox').querySelectorAll('.coin');
   faces.forEach((c, i) => {
     c.querySelector('.face').textContent = coins && coins[i] ? '背' : '字';
+  });
+  if (!animate) return;
+  // 三枚先後落下：每枚交錯 90ms，各帶一點隨機橫移與翻轉圈數
+  faces.forEach((c, i) => {
     c.classList.remove('toss');
     void c.offsetWidth;
-    c.style.animationDelay = `${i * 70}ms`;
+    c.style.setProperty('--drop-delay', `${i * 90}ms`);
+    c.style.setProperty('--drift', `${(Math.random() * 12 - 6).toFixed(1)}px`);
+    c.style.setProperty('--spin', `${Math.random() < 0.5 ? 360 : 540}deg`);
     c.classList.add('toss');
-    setTimeout(() => { c.style.animationDelay = ''; }, 600);
+    setTimeout(() => { c.style.removeProperty('--drop-delay'); }, 900);
   });
 }
 
@@ -1084,9 +1057,9 @@ $('tossBtn').addEventListener('click', () => {
     for (let i = 0; i < 6; i++) {
       lines.push(tossThreeCoins());
       renderCoins(lines[i].coins);
-      await sleep(350);
+      await sleep(660);
       renderLines(true);
-      await sleep(300);
+      await sleep(140);
     }
     const { upper, lower } = trigramFromLines(lines);
     const movingIndexes = [];
@@ -1109,7 +1082,7 @@ $('tossBtn').addEventListener('click', () => {
 $('undoBtn').addEventListener('click', () => {
   if (casting) return;
   lines.pop();
-  renderCoins(lines.length ? lines[lines.length - 1].coins : null);
+  renderCoins(lines.length ? lines[lines.length - 1].coins : null, false);
   renderLines();
   lastCast = null;
   $('resultBox').innerHTML = '尚未起卦。請先擲銅錢或報數起卦。';
@@ -1120,7 +1093,7 @@ $('undoBtn').addEventListener('click', () => {
 $('resetBtn').addEventListener('click', () => {
   if (casting) return;
   lines = [];
-  renderCoins(null);
+  renderCoins(null, false);
   renderLines();
   lastCast = null;
   $('resultBox').innerHTML = '尚未起卦。請先擲銅錢或報數起卦。';
@@ -1176,7 +1149,7 @@ function hexColHTML(hg, movingIndexes, movingSymbols, isBen) {
         const yongShen = isYS(i);
         const mark = isMove && isBen ? movingSymbols[i] : false;
         return `
-        <div class="hex-row${isMove ? ' move' : ''}${yongShen ? ' yongshen' : ''}" style="animation-delay:${j * 90}ms">
+        <div class="hex-row${isMove ? ' move' : ''}${yongShen ? ' yongshen' : ''}" style="animation-delay:${j * 60}ms">
           <span class="hex-shen" data-note="${SIXSHEN_NOTE[shen[i]]}">${shen[i]}</span>
           <span class="hex-shift">${i === hg.shi ? '<span class="seal-mini fill" data-note="世：代表所占之事中的自己">世</span>' : i === hg.ying ? '<span class="seal-mini" data-note="應：代表對方、所問之事與環境">應</span>' : ''}</span>
           ${barHTML(hg.bits[i] ? '—' : '- -', mark, true)}
@@ -1313,7 +1286,7 @@ function restoreHistory(id){
   if(rec.source==='coins' && rec.lines && rec.lines.length){
     lines = rec.lines.map(l=>({coins:[...l.coins], backs:l.backs, symbol:l.symbol, moving:l.moving}));
     renderLines();
-    renderCoins(lines.length?lines[lines.length-1].coins:null);
+    renderCoins(lines.length?lines[lines.length-1].coins:null, false);
     const {upper, lower}=trigramFromLines(lines);
     const movingSymbols={}; (rec.moving||[]).forEach(i=> movingSymbols[i]= (rec.movingSymbols && rec.movingSymbols[i]) || (rec.movingSymbols && rec.movingSymbols[String(i)]) || '○');
     renderResult(cast(upper,lower,rec.moving||[]), movingSymbols);
