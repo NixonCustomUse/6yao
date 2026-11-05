@@ -1486,7 +1486,8 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
   }
 
   // 打靶法：調整入水點，讓（完全照物理跑的）錢落在指定的位置
-  function shootCoin(rand, o, S, Lstar, apex, delay) {
+  function shootCoin(rand, o, S, Lstar, apex, delay, opt) {
+    const iters = opt && opt.iters || 5, tol = opt && opt.tol || 3;
     const L0 = launchFor(rand, S, [Lstar[0], Lstar[1], 0], apex);
     const dir = Math.atan2(L0.v[1], L0.v[0]);
     // 拋出時的翻轉：主要繞「與飛行方向垂直的水平軸」，加一點偏擺與自轉
@@ -1496,13 +1497,13 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     const w0 = add(scl(flipAxis, spin), scl([M0[2], M0[5], M0[8]], (rand() - .5) * 18));
     let E = [Lstar[0], Lstar[1]], best = null;
     const lim = P.Rin - P.R - 6;
-    for (let it = 0; it < 5; it++) {
+    for (let it = 0; it < iters; it++) {
       const L = launchFor(rand, S, [E[0], E[1], 0], apex);
       const c = simulateCoin({ p0: S, v0: L.v, M0, w0, rand, delay });
       const F = c.final.p, err = [Lstar[0] - F[0], Lstar[1] - F[1]], e = Math.hypot(err[0], err[1]);
       c.err = e; c.entryAim = E.slice();
       if (!best || (c.wallHits === 0 && (best.wallHits > 0 || e < best.err))) best = c;
-      if (e < 3 && c.wallHits === 0) break;
+      if (e < tol && c.wallHits === 0) break;
       E = [E[0] + err[0] * .95, E[1] + err[1] * .95];
       const r = Math.hypot(E[0], E[1]);
       if (r > lim) break;
@@ -1535,6 +1536,45 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     return best;
   }
 
+  // 一次撒出多組（自動擲卦）：落點允許彼此部分重疊成一堆，途中不檢查相撞
+  function pickMany(rand, n, o) {
+    const lim = P.Rf - P.R - 4;
+    let sep = (o.sep || 1.15) * P.R, best = [];
+    for (let round = 0; round < 7; round++, sep *= .9) {
+      const pts = [];
+      for (let i = 0; i < n; i++) {
+        let ok = false;
+        for (let k = 0; k < 260 && !ok; k++) {
+          const a = rand() * TAU, r = Math.sqrt(rand()) * lim, p = [Math.cos(a) * r, Math.sin(a) * r];
+          if (o.visible && !o.visible(p, 2)) continue;
+          if (pts.every(q => Math.hypot(p[0] - q[0], p[1] - q[1]) >= sep)) { pts.push(p); ok = true; }
+        }
+        if (!ok) break;
+      }
+      if (pts.length > best.length) best = pts;
+      if (pts.length === n) return pts;
+    }
+    while (best.length < n) { const a = rand() * TAU, r = Math.sqrt(rand()) * lim * .7; best.push([Math.cos(a) * r, Math.sin(a) * r]); }
+    return best;
+  }
+  async function planBurst(o) {
+    o = Object.assign({ rand: Math.random, apex: 125, groupDelay: .06, tries: 3 }, o || {});
+    const rand = o.rand, N = o.n, T = pickMany(rand, N, o), coins = [];
+    for (let i = 0; i < N; i++) {
+      const g = Math.floor(i / 3), j = i % 3;
+      let pick = null;
+      for (let k = 0; k < o.tries; k++) {
+        const S = [o.mouth[0] + (rand() - .5) * 14 + (j - 1) * 6, o.mouth[1] + (rand() - .5) * 6, o.mouth[2] + (rand() - .5) * 6];
+        const c = shootCoin(rand, o, S, T[i], o.apex * (.85 + .3 * rand()), g * o.groupDelay + j * .02 + rand() * .012, { iters: 3, tol: 6 });
+        if (!pick || (c.wallHits === 0 && (pick.wallHits > 0 || c.err < pick.err))) pick = c;
+        if (c.err < 6 && c.wallHits === 0) break;
+      }
+      pick.g = g; coins.push(pick);
+      if (o.yield && j === 2) await o.yield();
+    }
+    return { coins, score: { ok: true } };
+  }
+
   // 依預定的正反（true = 背朝上）調整整段姿態
   function applyFaces(plan, faces) {
     plan.coins.forEach((c, i) => {
@@ -1557,7 +1597,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     return { p, M: f > 0 && f < 1 ? ortho(M) : M, k };
   }
 
-  return { P, RATE, planThrow, applyFaces, pose, simulateCoin, randomRot, lowestZ, wallR,
+  return { P, RATE, planThrow, planBurst, applyFaces, pose, simulateCoin, randomRot, lowestZ, wallR,
     m3: { dot, cross, len, add, sub, scl, unit, mul, mulV, mulTV, tr, rx, rz, axisAngle, ortho } };
 });
 </script>
@@ -1744,7 +1784,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     const al = k.alpha == null ? 1 : k.alpha; if (al <= .01) return;
     const tint = k.tint;
     ctx.save(); ctx.globalAlpha = al;
-    const N = 36;
+    const N = k.seg || 36;
     for (let i = 0; i < N; i++) {
       const am = (i + .5) / N * TAU, ca = Math.cos(am), sa = Math.sin(am);
       const r = [ca * u[0] + sa * v[0], ca * u[1] + sa * v[1], ca * u[2] + sa * v[2]];
@@ -2055,9 +2095,14 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     }
 
     /* ----- 水面效果 ----- */
-    function addRipple(x, y, t, amp, delay = 0) { st.ripples.push({ x, y, t0: t + delay, amp, v: 210, life: 1.3 }); }
+    function addRipple(x, y, t, amp, delay = 0) { if (st.ripples.length > 40) st.ripples.shift(); st.ripples.push({ x, y, t0: t + delay, amp, v: 210, life: st.lite ? 1 : 1.3 }); }
     function splash(e, t) {
       const flat = e.flat, sp = e.speed / 1000;
+      if (st.lite) {   // 自動擲卦：一把錢同時入水，效果收斂
+        addRipple(e.x, e.y, t, .55);
+        for (let i = 0; i < 3; i++) { const a = rand() * TAU, out = 60 + rand() * 110; st.drops.push({ p: [e.x, e.y, 1], v: [Math.cos(a) * out, Math.sin(a) * out, 380 + rand() * 420], r: .7 + rand() * 1.1, t0: t }); }
+        return;
+      }
       [[0, 1], [.12, .5]].forEach(([dl, a]) => addRipple(e.x, e.y, t, a * clamp(.45 + sp * .25, .45, .95), dl));
       const nDrop = Math.round(6 + 16 * flat * clamp(sp / 1.8, .4, 1.3));
       for (let i = 0; i < nDrop; i++) {
@@ -2159,6 +2204,8 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       if (!L.cam) return;
       if (!st.visible) { if (onScreen()) st.visible = true; else return; }
       const pf = window.__pf, a0 = pf ? performance.now() : 0;
+      frameRect = null;
+      if (fx.jobs.length) { frameRect = cv.getBoundingClientRect(); fx.jobs.forEach(j => { j.T = fxTargets(j); }); }
       step(t, dt);
       const a1 = pf ? performance.now() : 0;
       render(t);
@@ -2170,6 +2217,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       else { st.lastT = null; }
     }
     let idleTimer = 0;
+    let frameRect = null;
     function wake() { clearTimeout(idleTimer); st.lastBusy = Math.max(st.lastBusy || 0, now()); loop(); }
     function onScreen() { const r = cv.getBoundingClientRect(); return r.width > 0 && r.bottom > 0 && r.top < (window.innerHeight || 800) && !cv.closest('.is-closed'); }
     function waitUntil(t) {
@@ -2189,15 +2237,15 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
           const ps = S.pose(c, tau);
           k.cur = ps ? { p: ps.p, M: ps.M } : null;
           while (k.ev < c.events.length && c.delay + c.events[k.ev].t <= tau) { onEvent(k, c.events[k.ev], st.tLaunch + (c.delay + c.events[k.ev].t) / st.speed); k.ev++; }
-          if (tau >= c.delay + c.tRest + .05) { k.mode = 'rest'; k.rest = { p: c.final.p.slice(), M: S.pose(c, 1e9).M }; k.cur = k.rest; k.labelT0 = t; }
+          if (tau >= c.delay + c.tRest + .05) { k.mode = 'rest'; k.rest = { p: c.final.p.slice(), M: S.pose(c, 1e9).M }; k.cur = k.rest; if (!k.noLabel) k.labelT0 = t; }
         } else if (k.mode === 'rise') stepRise(k, t);
       }
       updateFx(t, dt);
       fxStep(t, dt);
     }
     function onEvent(k, e, t) {
-      if (e.type === 'entry') { splash(e, t); emitBubbles(k, t + .02, 4 + Math.round(4 * e.flat), .22); }
-      else if (e.type === 'touch') emitBubbles(k, t, 1 + (rand() < .5 ? 1 : 0), .05);
+      if (e.type === 'entry') { splash(e, t); emitBubbles(k, t + .02, st.lite ? 2 : 4 + Math.round(4 * e.flat), .22); }
+      else if (e.type === 'touch') { if (!st.lite) emitBubbles(k, t, 1 + (rand() < .5 ? 1 : 0), .05); }
     }
 
     /* ----- 畫 ----- */
@@ -2233,9 +2281,10 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
         const gr = g.createRadialGradient(0, 0, 0, 0, 0, rr); gr.addColorStop(0, `rgba(6,18,18,${al})`); gr.addColorStop(1, 'rgba(6,18,18,0)');
         g.fillStyle = gr; g.beginPath(); g.arc(0, 0, rr, 0, TAU); g.fill(); g.restore();
       }
-      under.sort((a, b) => a.p[2] - b.p[2]).forEach(it => {
+      const seg = st.coins.length > 6 ? 20 : 36;
+      under.sort((a, b) => (a.p[2] + (a.k.stack || 0) * .02) - (b.p[2] + (b.k.stack || 0) * .02)).forEach(it => {
         const depth = clamp(-it.p[2] / W.H, 0, 1);
-        drawCoin(g, cm, { p: appar(it.p), M: it.M, R: it.R, T: it.T, tint: [18, 56, 58, .06 + .2 * depth] });
+        drawCoin(g, cm, { p: appar(it.p), M: it.M, R: it.R, T: it.T, seg, tint: [18, 56, 58, .06 + .2 * depth] });
       });
       for (const b of st.bubbles) {
         if (!b.p) continue; const q = proj(cm, appar(b.p)), r = b.r * q.s * cm.scale;
@@ -2281,7 +2330,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       // 空中的錢與龜殼：依遠近排序
       const sp = shellPose(t), draws = above.map(it => {
         const k = it.k, young = k.mode === 'plan' && (t - st.tLaunch) * st.speed - k.c.delay < .1;   // 剛離殼口，還在殼後
-        return { z: young ? -1e9 : towardCam(cm, it.p), f: () => drawCoin(g, cm, { p: it.p, M: it.M, R: it.R, T: it.T }) };
+        return { z: young ? -1e9 : towardCam(cm, it.p), f: () => drawCoin(g, cm, { p: it.p, M: it.M, R: it.R, T: it.T, seg: st.coins.length > 6 ? 20 : 36 }) };
       });
       draws.push({ z: towardCam(cm, sp.c) + 6, f: () => drawShell(g, sp) });
       draws.sort((a, b) => a.z - b.z).forEach(d => d.f());
@@ -2353,6 +2402,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     async function throwCoins(faces, o) {
       o = o || {};
       const quick = !!o.quick, speed = quick ? 1.8 : 1, power = clamp(o.power || 1, .8, 1.2);
+      st.lite = false;
       st.coins = st.coins.filter(k => k.job && !k.handed);   // 上一組若還沒離開水盆就留著
       const s = st.shell;
       s.flickT0 = now() + .01; s.flickK = speed; s.src = null;
@@ -2386,16 +2436,16 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       st.coins = plan.coins.map((c, i) => { const M = S.pose(c, 1e9).M; return { mode: 'rest', c, bei: !!faces[i], rest: { p: c.final.p.slice(), M }, cur: { p: c.final.p.slice(), M }, labelT0: now() - 1, i }; });
       wake();
     }
-    function clear() { st.coins = []; st.ripples = []; st.drops = []; st.bubbles = []; st.crowns = []; fx.jobs.forEach(j => { j.dead = true; j.res(); }); fx.jobs = []; fx.clear(); wake(); }
+    function clear() { st.lite = false; st.coins = []; st.ripples = []; st.drops = []; st.bubbles = []; st.crowns = []; fx.jobs.forEach(j => { j.dead = true; j.res(); }); fx.jobs = []; fx.clear(); wake(); }
 
     /* ----- 化爻：浮起 ----- */
-    function startRise(k, t0, speed) {
+    function startRise(k, t0, speed, lite) {
       const p0 = k.cur.p.slice(), M0 = k.cur.M.slice();
       const bei = k.bei, ang = PI / 2 - L.cam.e;
       // 朝向觀者，且讓錢文端正（乾在上）
       const sgn = bei ? -1 : 1;
       k.mode = 'rise';
-      k.rise = { t0, speed, p0, M0, bei, ang, sgn, wob: rand() * TAU, ax: unit([rand() - .5, rand() - .5, 0]), surfaced: false, drift: [(-p0[0]) * .18, (-p0[1]) * .12], handT: null };
+      k.rise = { t0, speed, p0, M0, bei, ang, sgn, lite, wob: rand() * TAU, ax: unit([rand() - .5, rand() - .5, 0]), surfaced: false, drift: lite ? [0, 0] : [(-p0[0]) * .18, (-p0[1]) * .12], handT: null };
       // 目標姿態：平放（正面向上或背面向上）的錢，轉到端正，再朝觀者傾
       const u0 = [M0[0], M0[3], M0[6]];
       const psi = Math.atan2(u0[1], u0[0]);
@@ -2420,10 +2470,16 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
         if (!r.surfaced) {
           r.surfaced = true;
           const tt = now();
+          if (r.lite) {
+            addRipple(r.p0[0], r.p0[1], tt, .35);
+            for (let i = 0; i < 2; i++) { const ang = rand() * TAU; st.drops.push({ p: [r.p0[0] + Math.cos(ang) * P.R * .9, r.p0[1] + Math.sin(ang) * P.R * .9, 3 + rand() * 5], v: [Math.cos(ang) * 25, Math.sin(ang) * 25, 50 + rand() * 80], r: .8 + rand(), t0: tt + rand() * .15 }); }
+            if (k.i === 0) Sound.drip(0, .16, .95 + rand() * .3);
+          } else {
           addRipple(r.p0[0] + r.drift[0], r.p0[1] + r.drift[1], tt, .6); addRipple(r.p0[0] + r.drift[0], r.p0[1] + r.drift[1], tt, .28, .14);
           st.crowns.push({ x: r.p0[0] + r.drift[0], y: r.p0[1] + r.drift[1], t0: tt, life: .2, r0: P.R * 1.05, h: 5 });
           for (let i = 0; i < 6; i++) { const ang = rand() * TAU; st.drops.push({ p: [r.p0[0] + r.drift[0] + Math.cos(ang) * P.R * .9, r.p0[1] + r.drift[1] + Math.sin(ang) * P.R * .9, 2 + rand() * 6], v: [Math.cos(ang) * 30, Math.sin(ang) * 30, 60 + rand() * 120], r: .8 + rand() * 1.2, t0: tt + rand() * .25 }); }
           Sound.drip(0, .22, .9 + rand() * .3); Sound.drip(.12 + rand() * .1, .12, 1.3);
+          }
         }
         if (u > .2 && r.handT == null) r.handT = t;
       }
@@ -2456,8 +2512,8 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     function handOff(k, t) {
       const job = k.job; if (!job || job.dead) return;
       k.handed = true;
-      const cr = cv.getBoundingClientRect(), q = proj(L.cam, k.cur.p), rr = P.R * q.s * L.cam.scale;
-      job.items.push({ k, sx: cr.left + q.x, sy: cr.top + q.y, x: cr.left + q.x, y: cr.top + q.y, r0: rr, bei: k.bei, role: job.roles[k.i], t0: t, T: job.quick ? .36 : .52 });
+      const cr = frameRect || cv.getBoundingClientRect(), q = proj(L.cam, k.cur.p), rr = P.R * q.s * L.cam.scale;
+      job.items.push({ k, sx: cr.left + q.x, sy: cr.top + q.y, x: cr.left + q.x, y: cr.top + q.y, r0: rr, bei: k.bei, role: job.roles[k.i], t0: t, T: job.flyT || (job.quick ? .36 : .52) });
       if (job.items.length === job.n && job.onHanded) { const f = job.onHanded; job.onHanded = null; f(); }
       wake();
     }
@@ -2486,7 +2542,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       for (const job of fx.jobs.slice()) stepJob(job, t, g);
     }
     function stepJob(job, t, g) {
-      const T = fxTargets(job), mv = job.v === 6 || job.v === 9, col = mv ? TOK.cinC : TOK.inkC, tex = coinTex();
+      const T = job.T || (job.T = fxTargets(job)), mv = job.v === 6 || job.v === 9, col = mv ? TOK.cinC : TOK.inkC, tex = coinTex();
       if (!job.landed) {
         let allDone = job.items.length === job.n;
         for (const it of job.items) {
@@ -2545,34 +2601,84 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
       g.lineTo(x + r, y + h); g.arcTo(x, y + h, x, y + h - r, r); g.lineTo(x, y + r); g.arcTo(x, y, x + r, y, r); g.closePath();
     }
     // 化爻：錢浮起出水 → 交給疊層 → 落進爻位。onHanded：三枚都離開水盆時；onLand：落定的那一格
-    function transform(target, o) {
-      o = o || {};
+    function startJob(coins, spec, opt) {
+      opt = opt || {};
       return new Promise(res0 => {
-        const quick = !!o.quick, speed = quick ? 1.9 : 1;
+        const quick = !!opt.quick, speed = opt.speed || (quick ? 1.9 : 1), delay = opt.delay || 0;
         let settled = false;
         const res = () => { if (settled) return; settled = true; clearTimeout(guard); res0(); };
-        const coins = st.coins.filter(k => !k.job && (k.mode === 'rest' || k.mode === 'plan'));
         const finishNow = () => {
-          if (!job.landed) { job.landed = true; job.tLand = now(); st.coins = st.coins.filter(k => k.job !== job); o.onLand && o.onLand(); }
+          if (!job.landed) { job.landed = true; job.tLand = now(); st.coins = st.coins.filter(k => k.job !== job && !coins.includes(k)); spec.onLand && spec.onLand(); }
           if (job.onHanded) { const f = job.onHanded; job.onHanded = null; f(); }
           job.dead = true; const i = fx.jobs.indexOf(job); if (i >= 0) fx.jobs.splice(i, 1);
           res();
         };
         // 依畫面左右排定每枚錢的角色
         const order = coins.map((k, i) => ({ i, x: k.cur ? proj(L.cam, k.cur.p).x : i })).sort((a, b) => a.x - b.x);
-        const segs = segsFor(o.value), roles = [];
+        const segs = segsFor(spec.value), roles = [];
         order.forEach((e, j) => { roles[e.i] = segs[j]; });
-        const job = { bars: target.bars, mark: target.mark, v: o.value, quick, roles, ink: [], items: [], n: coins.length, landed: false, onLand: o.onLand, onHanded: o.onHanded, res };
+        const job = { bars: spec.target.bars, mark: spec.target.mark, v: spec.value, quick, roles, ink: [], items: [], n: coins.length, landed: false, onLand: spec.onLand, onHanded: spec.onHanded, res, flyT: opt.flyT };
         // 保險：畫面暫停（不在視窗內）時直接落定
-        const guard = setTimeout(finishNow, (quick ? 2.6 : 4.2) * 1000);
+        const guard = setTimeout(finishNow, (delay + (quick ? 2.6 : 4.2)) * 1000);
         if (!st.visible && onScreen()) st.visible = true;
         if (!st.visible || !coins.length) { finishNow(); return; }
         fx.jobs.push(job); fx.size();
-        const t0 = now();
-        coins.forEach((k, j) => { k.i = j; k.job = job; startRise(k, t0 + order.findIndex(e => e.i === j) * .05 / speed, speed); });
-        Sound.swish(.05, .1, true);
+        const t0 = now() + delay;
+        coins.forEach((k, j) => { k.i = j; k.job = job; startRise(k, t0 + order.findIndex(e => e.i === j) * .05 / speed, speed, !!opt.lite); });
+        if (!opt.silent) Sound.swish(.05 + delay, .1, true);
         wake();
       });
+    }
+    function transform(target, o) {
+      o = o || {};
+      const coins = st.coins.filter(k => !k.job && (k.mode === 'rest' || k.mode === 'plan'));
+      return startJob(coins, { target, value: o.value, onLand: o.onLand, onHanded: o.onHanded }, { quick: !!o.quick });
+    }
+
+    /* ----- 自動擲卦：一把撒出全部，再一起化爻 ----- */
+    let burstPlan = null;
+    function prepareBurst(groupsN) {   // 一按下就開始算軌跡（分段，不卡畫面）
+      const mouth = shellMouth(shellPose(0, true, .07));
+      burstPlan = { n: groupsN, p: S.planBurst({ n: groupsN * 3, mouth, apex: 125, groupDelay: .06, visible, yield: () => new Promise(r => setTimeout(r, 0)) }) };
+      return burstPlan.p;
+    }
+    async function throwAll(groups) {
+      const n = groups.length, speed = 1.35, s = st.shell;
+      const planP = burstPlan && burstPlan.n === n ? burstPlan.p : prepareBurst(n);
+      burstPlan = null;
+      st.coins = []; st.lite = true;
+      s.src = null; s.liftTarget = 1; wake();
+      const [plan] = await Promise.all([planP, waitUntil(now() + .2)]);
+      S.applyFaces(plan, groups.flat());
+      s.flickT0 = now() + .01; s.flickK = 1.4;
+      const tRel = .07;
+      st.plan = plan; st.speed = speed; st.tLaunch = s.flickT0 + tRel / speed;
+      // 誰先落底誰在下面
+      const byTouch = plan.coins.map((c, i) => [c.delay + (c.tTouch == null ? 9 : c.tTouch), i]).sort((a, b) => a[0] - b[0]);
+      const stack = []; byTouch.forEach(([, i], r) => { stack[i] = r; });
+      st.coins = plan.coins.map((c, i) => ({ mode: 'plan', c, bei: !!c.bei, ev: 0, cur: null, labelT0: 0, noLabel: true, g: c.g, i: i % 3, stack: stack[i] }));
+      // 聲音：每組一聲就好
+      Sound.swish(0, .16);
+      plan.coins.forEach((c, i) => {
+        if (i % 3) return;
+        const x0 = (tRel + c.delay) / speed;
+        Sound.rattle(x0, .16, 1.05 + rand() * .2);
+        c.events.forEach(e => {
+          const x = (tRel + c.delay + e.t) / speed;
+          if (e.type === 'entry') Sound.splash(x, clamp(e.speed / 2600, .2, .55), e.flat, .9 + rand() * .3);
+          else if (e.type === 'touch') Sound.uclink(x, .18, .95 + rand() * .15);
+        });
+      });
+      setTimeout(() => buzz(14), (tRel + .4) / speed * 1000);
+      setTimeout(() => { if (!st.shell.src) st.shell.liftTarget = 0; }, 380 / speed);
+      const tEnd = st.tLaunch + Math.max(...plan.coins.map(c => c.delay + (c.tTouch == null ? c.tRest : c.tTouch) + .22)) / speed;
+      await waitUntil(tEnd);
+      return true;
+    }
+    // specs[g] = { target, value, onLand }：第 g 組化成第 g 爻，由初爻往上依序
+    function transformAll(specs) {
+      const jobs = specs.map((sp, g) => startJob(st.coins.filter(k => k.g === g && !k.job), sp, { quick: true, speed: 2.1, delay: g * .11, lite: true, flyT: .34, silent: g > 0 }));
+      return Promise.all(jobs);
     }
 
     /* ----- 生命週期 ----- */
@@ -2586,6 +2692,7 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
 
     return {
       layout() { if (layout()) wake(); }, refreshTheme, shake, throwCoins, transform, jump, clear, wake, visible,
+      prepareBurst, throwAll, transformAll,
       get busy() { return st.coins.some(k => k.mode === 'plan' || k.mode === 'rise') || fx.jobs.length > 0; },
       _st: st, _L: L
     };
@@ -2912,16 +3019,29 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
     b.disabled = !!state.auto || state.busy || (state.stage === 'cast' && n >= 6);
     b.querySelector('.t').textContent = state.auto ? '自動擲卦中…' : mid ? `自動擲完剩下 ${6 - n} 次` : '自動擲卦';
   }
+  // 一次撒出剩下的錢，再一起化爻（由初爻往上）；減少動態時直接畫上
   async function autoFinish() {
     if (state.busy || ctl.holding || state.auto || state.stage === 'result') return;
-    state.auto = true; syncAuto();
+    state.auto = true; state.busy = true; syncAuto(); updateCastUI();
+    Sound.unlock();
     try {
-      while (state.values.length < 6 && state.stage !== 'result') {
-        ctl.begun = beginHold('auto', true);
-        if (!(await ctl.begun)) break;
-        await release({ quick: true });
-        await sleep(40);
+      const n0 = state.stage === 'ask' ? 0 : state.values.length, k = 6 - n0;
+      if (k <= 0) return;
+      if (!still()) pond.prepareBurst(k);   // 先開始算軌跡，和展開動畫同時進行
+      if (state.stage === 'ask') await enterCast();
+      const tosses = Array.from({ length: k }, () => E.tossCoins());
+      tosses.forEach(t => state.values.push(t.value));
+      $('#castHint').textContent = k === 6 ? '六次一起擲' : `剩下 ${k} 次一起擲`;
+      if (still()) {
+        tosses.forEach((t, j) => drawSlot(n0 + j, t.value, false));
+      } else {
+        await pond.throwAll(tosses.map(t => t.coins));
+        $('#castHint').textContent = '化爻';
+        await pond.transformAll(tosses.map((t, j) => ({ target: slotParts(n0 + j), value: t.value, onLand: () => drawSlot(n0 + j, t.value, 'landed') })));
       }
+      $('#castHint').textContent = '卦成';
+      state.busy = false;
+      await finishCast();
     } finally {
       state.auto = false; syncAuto();
       if (state.stage === 'cast' && !state.busy) updateCastUI();
