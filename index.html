@@ -3080,23 +3080,31 @@ return { TRIGRAM, HEXAGRAM_TABLE, YIJING, BAI };
 
   // 搖手機：DeviceMotion（iOS 需在點按中取得授權）
   const motionAvailable = () => 'DeviceMotionEvent' in window && window.matchMedia('(pointer: coarse)').matches;
+  // 搖手機要在網站上、用瀏覽器直接開；嵌在別的 App 預覽框裡（如 Claude 的預覽）時，手機會直接拒絕，連詢問都不跳
+  const framed = (() => { try { return window.self !== window.top; } catch (e) { return true; } })();
+  const MOTION_MSG = {
+    framed: 'Claude 的預覽視窗擋住手機感測；放上網站、用 Safari 或 Chrome 直接開才能搖，現在先按住印章。',
+    insecure: '要用 https 網址打開，才能搖手機；現在先按住印章。',
+    denied: '動作感測被拒絕了。把瀏覽器完全關掉再開，回到這頁再按「搖手機擲」，跳出詢問時選「允許」。',
+    none: '這台手機沒有傳回動作感測，請改按住印章搖。'
+  };
+  const motionFail = kind => { $('#castHint').textContent = framed ? MOTION_MSG.framed : MOTION_MSG[kind]; };
   async function toggleMotion() {
     if (motion.on) { stopMotion(); updateCastUI(); return; }
+    if (!window.isSecureContext) { $('#castHint').textContent = MOTION_MSG.insecure; return; }
     try {
       if (typeof DeviceMotionEvent.requestPermission === 'function') {
-        const r = await DeviceMotionEvent.requestPermission();
-        if (r === 'denied') { $('#castHint').textContent = '沒有取得動作感測的權限，請改按住印章搖'; return; }
+        const r = await DeviceMotionEvent.requestPermission();   // 必須在點按當下呼叫（iOS）
+        if (r === 'denied') { motionFail('denied'); return; }
       }
-    } catch (e) { $('#castHint').textContent = '這裡讀不到手機的動作感測，請改按住印章搖'; return; }
+    } catch (e) { motionFail('none'); return; }
     Sound.unlock();
     motion.on = true; motion.got = false; motion.lp = null;
     window.addEventListener('devicemotion', onMotion);
     $('#motionBtn').setAttribute('aria-pressed', 'true');
     $('#castHint').textContent = '搖一搖手機，錢會從龜殼裡搖出來';
     clearTimeout(motion.timer);
-    motion.timer = setTimeout(() => {
-      if (motion.on && !motion.got) { stopMotion(); $('#castHint').textContent = '這個畫面收不到手機的動作感測（預覽視窗會擋），請改按住印章搖；放到網站上就能搖手機。'; }
-    }, 1600);
+    motion.timer = setTimeout(() => { if (motion.on && !motion.got) { stopMotion(); motionFail('none'); } }, 1600);
   }
   function stopMotion() { motion.on = false; window.removeEventListener('devicemotion', onMotion); $('#motionBtn').setAttribute('aria-pressed', 'false'); }
   function onMotion(e) {
